@@ -1,0 +1,6 @@
+**
+!go.*
+!*.go
+!src
+!config
+!cover_gen.sh
