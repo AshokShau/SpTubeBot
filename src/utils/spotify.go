@@ -122,7 +122,7 @@ func (s *SpotifyData) Search(limit string) (*PlatformSong, error) {
 	return &data, nil
 }
 func (s *SpotifyData) GetTrack(trackID string) (*SpotifyTrackDetails, error) {
-	url := fmt.Sprintf("%s/get_track/%s", s.ApiUrl, trackID)
+	url := fmt.Sprintf("%s/get_track?id=%s", s.ApiUrl, trackID)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
