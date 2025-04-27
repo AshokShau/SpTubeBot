@@ -3,7 +3,7 @@ module songBot
 go 1.24.0
 
 require (
-	github.com/amarnathcjd/gogram v1.5.9
+	github.com/amarnathcjd/gogram v1.5.10-0.20250426204309-66d43ab3445a
 	github.com/joho/godotenv v1.5.1
 	github.com/lrstanley/go-ytdlp v0.0.0-20250401014907-da1707e4fb85
 )
