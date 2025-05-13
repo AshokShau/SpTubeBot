@@ -11,7 +11,7 @@ FROM alpine:3.20.2
 
 WORKDIR /app
 
-RUN apk add --no-cache ffmpeg bash vorbis-tools file coreutils gawk aria2
+RUN apk add --no-cache ffmpeg bash vorbis-tools file coreutils gawk
 
 COPY --from=builder /app/songBot /app/songBot
 COPY cover_gen.sh /app/cover_gen.sh
