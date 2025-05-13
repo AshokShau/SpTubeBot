@@ -14,6 +14,7 @@ import (
 
 func YtVideoDL(m *telegram.NewMessage) error {
 	yt.MustInstall(context.TODO(), nil)
+
 	args := m.Args()
 	if args == "" {
 		m.Reply("Provide video url~")
@@ -23,10 +24,13 @@ func YtVideoDL(m *telegram.NewMessage) error {
 	msg, _ := m.Reply("Downloading video...")
 
 	dl := yt.New().
-		FormatSort("res,ext:mp4:m4a").
-		Format("bv+ba").
+		FormatSort("res:1080,tbr").
+		Format("bv+ba/b").
+		NoWarnings().
 		RecodeVideo("mp4").
 		Output("yt-video.mp4").
+		Downloader("aria2c").
+		DownloaderArgs("--console-log-level=warn --max-connection-per-server=16 --split=16 --min-split-size=1M").
 		ProgressFunc(time.Second*7, func(update yt.ProgressUpdate) {
 			text := "<b>~ Downloading Youtube Video ~</b>\n\n"
 			text += "<b>📄 Name:</b> <code>%s</code>\n"
@@ -57,6 +61,10 @@ func YtVideoDL(m *telegram.NewMessage) error {
 				}
 			}()
 			percent := float64(update.DownloadedBytes) / float64(update.TotalBytes) * 100
+			if percent == 0 {
+				msg.Edit("Starting download...")
+				return
+			}
 
 			progressbar := strings.Repeat("■", int(percent/10)) + strings.Repeat("□", 10-int(percent/10))
 
@@ -68,7 +76,7 @@ func YtVideoDL(m *telegram.NewMessage) error {
 
 	_, err := dl.Run(context.TODO(), args)
 	if err != nil {
-		m.Edit("<code>video not found.</code>")
+		msg.Edit("<code>video not found.</code>")
 		return nil
 	}
 
