@@ -6,6 +6,7 @@ import (
 	"github.com/amarnathcjd/gogram/telegram"
 	"os"
 	"songBot/config"
+	"strconv"
 	"strings"
 	"time"
 
@@ -67,7 +68,10 @@ func YtVideoDL(m *telegram.NewMessage) error {
 			msg.Edit(message)
 		}).
 		Proxy(config.Proxy).
-		NoWarnings()
+		NoWarnings().
+		NoPart().
+		Continue().
+		Retries(strconv.Itoa(2))
 
 	_, err := dl.Run(context.TODO(), args)
 	if err != nil {
