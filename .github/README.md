@@ -1,72 +1,118 @@
-# SongBot
-A Telegram bot for downloading high-quality songs.
+# 🎵 SongBot Installation Guide
 
+A Telegram bot for downloading high-quality songs from Spotify.
 
-#### Api Key or Url ?
-> [View Details](https://github.com/AshokShau/TgMusicBot?tab=readme-ov-file#facing-ip-ban-issues-from-youtube)
+> 🔑 Need an API Key or URL?
+> Talk to [@FallenApiBot](https://t.me/FallenApiBot)
 
-> [Api Docs](https://gist.github.com/AshokShau/7528cddc5b264035dee40523a44ff153)
+---
 
-## Features
+## 💡 Features
 
-- Download high-quality songs from Spotify
-- Support for inline mode and private chats
-- Ability to download songs from Spotify URLs
-- Upload files directly to Telegram
-- Docker support for easy deployment
+* Download high-quality Spotify songs
+* Supports inline mode & private chats
+* Accepts Spotify song, album, or playlist URLs
+* Uploads songs directly to Telegram
+* Easy setup with or without Docker
 
-## Installation
+---
 
-### 1. Install Go
-Follow the official Go installation guide: [Go Installation Guide](https://golang.org/doc/install).
+# ⚙️ Installation Steps
 
-#### Easy Installation (Linux)
-```shell
+## **1. Install Go (Golang)**
+
+### ✅ Easiest Method for Everyone:
+
+#### **🖥️ Windows / macOS:**
+
+* Go to: [https://golang.org/doc/install](https://golang.org/doc/install)
+* Download the installer and run it (just like any other app)
+* After installing, open a terminal and check it's working:
+
+  ```bash
+  go version
+  ```
+
+#### **🐧 Linux (1-Line Install):**
+
+Open your terminal and run:
+
+```bash
 git clone https://github.com/udhos/update-golang dlgo && cd dlgo && sudo ./update-golang.sh && source /etc/profile.d/golang_path.sh
 ```
-Exit the terminal and reopen it to verify the installation:
-```shell
+
+Then close and reopen your terminal, and check:
+
+```bash
 go version
 ```
 
-### 2. Clone the Repository
-```shell
+---
+
+## **2. Download the Bot Code**
+
+In your terminal, run:
+
+```bash
 git clone https://github.com/AshokShau/SpTubeBot && cd SpTubeBot
 ```
 
-### 3. Set Up the Environment
-Copy the sample environment file and edit it as needed:
-```shell
-cp sample.env .env && vi .env
-```
+This will download the code and move you into the bot's folder.
 
-### 4. Build the Project
-```shell
+---
+
+## **3. Configure the Bot**
+
+### 🔧 Setup the Environment File
+
+1. Copy the example config:
+
+   ```bash
+   cp sample.env .env
+   ```
+
+2. Edit the `.env` file:
+
+    * On **Windows**: Open it in Notepad or VS Code
+    * On **Linux/Mac**:
+
+      ```bash
+      nano .env
+      ```
+
+      (Edit the values, then press `Ctrl + X`, `Y`, and Enter to save)
+
+---
+
+## **4. Run the Bot**
+
+### 🟢 Option 1: Run Without Docker (Simple)
+
+```bash
 go build -o songBot
-```
-
-### 5. Run the Bot
-```shell
 ./songBot
 ```
 
-## Docker Deployment
+### 🐳 Option 2: Run With Docker (Clean Setup)
 
-### 1. Build the Docker Image
-```shell
+```bash
 docker build -t songbot .
-```
-
-### 2. Run the Bot Using Docker
-```shell
 docker run --env-file .env --name songbot -d songbot
 ```
 
-## Usage
+---
 
-- Start the bot and send a song name or a Spotify URL to download the song.
-- Use the `/spotify` command to download a song from Spotify in a group chat.
+## ✅ You’re Done! Start Using the Bot
 
-## License
+* Open your bot on Telegram
+* Send a song name or a Spotify link
+* You can also use `/spotify` in group chats
 
-This project is licensed under the MIT License. See the [LICENSE](/LICENSE) file for more information.
+---
+
+## 🪪 License
+
+This project uses the **MIT License**.
+See the [LICENSE](/LICENSE) file for details.
+
+---
