@@ -12,7 +12,7 @@ func prepareTrackMessageOptions(track *utils.SpotifyTrackDetails, file any, thum
 		Caption: caption,
 		Attributes: []telegram.DocumentAttribute{
 			&telegram.DocumentAttributeFilename{FileName: fmt.Sprintf("%s.ogg", track.Name)},
-			&telegram.DocumentAttributeAudio{Title: track.Name, Performer: track.Artist + " @SpTubeBot", Duration: int32(track.Duration)},
+			&telegram.DocumentAttributeAudio{Title: track.Name, Performer: track.Artist + " @BeatsXBot", Duration: int32(track.Duration)},
 		},
 		Spoiler:  true,
 		MimeType: "audio/mpeg",

@@ -207,7 +207,7 @@ func vorbRepairOGG(inputFile string, r SpotifyTrackDetails) (string, []byte, err
 	}
 
 	vorbisMetadata := fmt.Sprintf(
-		"METADATA_BLOCK_PICTURE=%s\n"+"ALBUM=%s\n"+"ARTIST=%s\n"+"TITLE=%s\n"+"GENRE=Spotify @FallenProjects @SpTubeBot\n"+"YEAR=%d\n"+"TRACKNUMBER=%s\n"+"COMMENT=Downloaded via @SpTubeBot by @FallenProjects\n"+"PUBLISHER=%s\n"+"DURATION=%d\n",
+		"METADATA_BLOCK_PICTURE=%s\n"+"ALBUM=%s\n"+"ARTIST=%s\n"+"TITLE=%s\n"+"GENRE=Spotify @FallenProjects @BeatsXBot\n"+"YEAR=%d\n"+"TRACKNUMBER=%s\n"+"COMMENT=Downloaded via @BeatsXBot by @FallenProjects\n"+"PUBLISHER=%s\n"+"DURATION=%d\n",
 		createVorbisImageBlock(coverData), r.Album, r.Artist, r.Name, r.Year, r.TC, r.Artist, r.Duration,
 	)
 
