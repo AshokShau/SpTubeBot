@@ -2,10 +2,12 @@ package src
 
 import (
 	"fmt"
-	"songBot/src/utils"
-	"strings"
-
 	"github.com/amarnathcjd/gogram/telegram"
+	"os"
+	"regexp"
+	"songBot/src/utils"
+	"strconv"
+	"strings"
 )
 
 // SpotifySearchSong handles song search requests from messages.
@@ -20,7 +22,7 @@ func SpotifySearchSong(m *telegram.NewMessage) error {
 		return err
 	}
 
-	sp := utils.NewSpotifyData(songName)
+	sp := utils.NewApiData(songName)
 	kb := telegram.NewKeyboard()
 	if sp.IsValid(songName) {
 		song, err := sp.GetInfo(songName)
@@ -40,6 +42,7 @@ func SpotifySearchSong(m *telegram.NewMessage) error {
 				fmt.Sprintf("spot_%s_0", track.ID),
 			))
 		}
+
 		_, err = m.Reply("<b>Select a song from below:</b>", telegram.SendOptions{
 			ReplyMarkup: kb.Build(),
 		})
@@ -54,7 +57,7 @@ func SpotifySearchSong(m *telegram.NewMessage) error {
 
 	search, err := sp.Search("5")
 	if err != nil {
-		_, _ = m.Reply("Failed to search for song.")
+		_, _ = m.Reply("Failed to search for song." + err.Error())
 		return nil
 	}
 
@@ -98,7 +101,7 @@ func SpotifyHandlerCallback(cb *telegram.CallbackQuery) error {
 
 	_, _ = cb.Answer("Processing your request...", &telegram.CallbackOptions{Alert: true})
 
-	track, err := utils.NewSpotifyData("").GetTrack(dataParts[1])
+	track, err := utils.NewApiData("").GetTrack(dataParts[1])
 	if err != nil {
 		cb.Client.Logger.Warn("Failed to fetch track details: " + err.Error())
 		_, _ = cb.Edit("Failed to fetch track details. Please try again later.")
@@ -119,11 +122,35 @@ func SpotifyHandlerCallback(cb *telegram.CallbackQuery) error {
 		_, _ = message.Edit("Failed to download the song. Please try again later.")
 		return nil
 	}
-
-	message, _ = message.Edit("Uploading the song...")
 	progressManager := telegram.NewProgressManager(5)
-	progressManager.Edit(telegram.MediaDownloadProgress(message, progressManager))
+	message, _ = message.Edit("Uploading the song...")
+	re := regexp.MustCompile(`https?://t\.me/([^/]+)/(\d+)`)
+	matches := re.FindStringSubmatch(audioFile)
+	if len(matches) == 3 {
+		username := matches[1]
+		messageID, err := strconv.Atoi(matches[2])
+		if err != nil {
+			cb.Client.Logger.Warn("Failed to upload the song:", err.Error())
+			_, err = message.Edit("Failed to upload the song. Please try again later.")
+		}
 
+		msgX, err := message.Client.GetMessageByID(username, int32(messageID))
+		if err != nil {
+			cb.Client.Logger.Warn("Failed to upload the song:", err.Error())
+			_, err = message.Edit("Failed to upload the song. Please try again later.")
+		}
+
+		progressManager.Edit(telegram.MediaDownloadProgress(message, progressManager))
+		if audioFile, err = msgX.Download(&telegram.DownloadOptions{
+			ProgressManager: progressManager,
+			FileName:        msgX.File.Name,
+		}); err != nil {
+			_, err = message.Edit("Failed to download the song. Please try again later." + err.Error())
+			return nil
+		}
+	}
+
+	progressManager.Edit(telegram.MediaDownloadProgress(message, progressManager))
 	caption := fmt.Sprintf("<b> %s- %d</b>\n<b>Artist:</b> %s", track.Name, track.Year, track.Artist)
 	options := prepareTrackMessageOptions(track, audioFile, thumbnail, progressManager, caption)
 	_, err = message.Edit(caption, options)
@@ -133,5 +160,6 @@ func SpotifyHandlerCallback(cb *telegram.CallbackQuery) error {
 		return nil
 	}
 
+	_ = os.Remove(audioFile)
 	return nil
 }

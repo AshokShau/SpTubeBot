@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"songBot/config"
+	"songBot/src/config"
 	"time"
 
 	tg "github.com/amarnathcjd/gogram/telegram"
@@ -16,12 +16,13 @@ var (
 
 func main() {
 	if config.Token == "" || config.ApiKey == "" || config.ApiUrl == "" {
-		log.Fatal("Missing environment variables")
+		log.Fatal("Missing environment variables. Please set TOKEN, API_KEY, and API_URL.")
 	}
 
+	// https://pastebin.com/0mWJ7MWQ
 	clientConfig := tg.ClientConfig{
-		AppID:        6,
-		AppHash:      "eb06d4abfb49dc3eeb1aeb98ae0f581e",
+		AppID:        8,
+		AppHash:      "7245de8e747a0d6fbe11f7cc14fcc0bb",
 		Session:      "session.dat",
 		FloodHandler: handleFlood,
 	}

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/amarnathcjd/gogram/telegram"
 	"os"
-	"songBot/config"
+	"songBot/src/config"
 	"strconv"
 	"strings"
 	"time"

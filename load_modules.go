@@ -7,17 +7,22 @@ import (
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
-func filterPmChat(m *telegram.NewMessage) bool {
+var urlPatterns = map[string]*regexp.Regexp{
+	"spotify": regexp.MustCompile(`^(https?://)?(open\.spotify\.com/(track|playlist|album|artist)/[a-zA-Z0-9]+)(\?.*)?$`),
+	//"soundcloud":    regexp.MustCompile(`^(https?://)?(www\.)?soundcloud\.com/[a-zA-Z0-9_-]+(/(sets)?/[a-zA-Z0-9_-]+)?(\?.*)?$`),
+	"youtube":       regexp.MustCompile(`^(https?://)?(www\.)?(youtube\.com/watch\?v=|youtu\.be/)[a-zA-Z0-9_-]+(\?.*)?$`),
+	"youtube_music": regexp.MustCompile(`^(https?://)?(music\.)?youtube\.com/(watch\?v=|playlist\?list=|)[a-zA-Z0-9_-]+(\?.*)?$`),
+}
+
+func filterURLChat(m *telegram.NewMessage) bool {
 	text := m.Text()
 	if m.IsCommand() || text == "" || m.IsForward() || m.Message.ViaBotID != 0 {
 		return false
 	}
-
-	urlRegex := regexp.MustCompile(`(?i)\b(?:https?://|www\.)\S+\b`)
-	isUrl := urlRegex.MatchString(text)
-
-	if len(text) > 50 && !isUrl {
-		return false
+	for _, pattern := range urlPatterns {
+		if pattern.MatchString(text) {
+			return true
+		}
 	}
 
 	return m.IsPrivate()
@@ -43,5 +48,5 @@ func initFunc(c *telegram.Client) {
 	c.On("command:dl", src.DownloadHandle, telegram.FilterFunc(FilterOwner))
 	c.On("command:ver", src.GoGramVersion, telegram.FilterFunc(FilterOwner))
 
-	c.On("message:*", src.SpotifySearchSong, telegram.FilterFunc(filterPmChat))
+	c.On("message:*", src.SpotifySearchSong, telegram.FilterFunc(filterURLChat))
 }

@@ -6,7 +6,7 @@ import (
 	"songBot/src/utils"
 )
 
-func prepareTrackMessageOptions(track *utils.SpotifyTrackDetails, file any, thumb []byte, pm *telegram.ProgressManager, caption string) telegram.SendOptions {
+func prepareTrackMessageOptions(track *utils.TrackInfo, file any, thumb []byte, pm *telegram.ProgressManager, caption string) telegram.SendOptions {
 	opts := telegram.SendOptions{
 		Media:   file,
 		Caption: caption,
