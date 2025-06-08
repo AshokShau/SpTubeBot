@@ -39,6 +39,7 @@ func initFunc(c *telegram.Client) {
 	c.On("command:ping", src.PingHandle)
 	c.On("command:spotify", src.SpotifySearchSong)
 	c.On("command:vid", src.YtVideoDL)
+	c.On("command:privacy", src.PrivacyHandle)
 
 	c.On("callback:spot_(.*)_(.*)", src.SpotifyHandlerCallback)
 	c.AddRawHandler(&telegram.UpdateBotInlineSend{}, src.SpotifyInlineHandler)
