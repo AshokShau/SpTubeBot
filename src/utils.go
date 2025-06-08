@@ -17,7 +17,7 @@ func prepareTrackMessageOptions(track *utils.TrackInfo, file any, thumb []byte, 
 		Spoiler:  true,
 		MimeType: "audio/mpeg",
 		ReplyMarkup: telegram.NewKeyboard().AddRow(
-			telegram.Button.URL("🎵 Info", fmt.Sprintf("https://song.link/s/%s", track.TC)),
+			telegram.Button.URL("Fᴀʟʟᴇɴ PʀᴏJᴇᴄᴛs", "https://t.me/FallenProjects"),
 		).Build(),
 	}
 
