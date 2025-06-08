@@ -140,10 +140,10 @@ func SpotifyHandlerCallback(cb *telegram.CallbackQuery) error {
 			_, err = message.Edit("Failed to upload the song. Please try again later.")
 		}
 
-		progressManager.Edit(telegram.MediaDownloadProgress(message, progressManager))
+		//progressManager.Edit(telegram.MediaDownloadProgress(message, progressManager))
 		if audioFile, err = msgX.Download(&telegram.DownloadOptions{
-			ProgressManager: progressManager,
-			FileName:        msgX.File.Name,
+			//ProgressManager: progressManager,
+			FileName: msgX.File.Name,
 		}); err != nil {
 			_, err = message.Edit("Failed to download the song. Please try again later." + err.Error())
 			return nil
