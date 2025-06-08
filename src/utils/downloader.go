@@ -278,10 +278,10 @@ func addVorbisComments(outputFile string, track TrackInfo, coverData []byte) err
 			"ALBUM=%s\n"+
 			"ARTIST=%s\n"+
 			"TITLE=%s\n"+
-			"GENRE=Spotify @FallenProjects @BeatsXBot\n"+
+			"GENRE=Spotify @FallenProjects\n"+
 			"YEAR=%d\n"+
 			"TRACKNUMBER=%s\n"+
-			"COMMENT=Downloaded via @BeatsXBot by @FallenProjects\n"+
+			"COMMENT=By @FallenProjects\n"+
 			"PUBLISHER=%s\n"+
 			"DURATION=%d\n",
 		createVorbisImageBlock(coverData),
