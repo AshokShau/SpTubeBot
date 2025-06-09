@@ -86,22 +86,25 @@ func SpotifySearchSong(m *telegram.NewMessage) error {
 }
 
 func SpotifyHandlerCallback(cb *telegram.CallbackQuery) error {
-	dataParts := strings.Split(cb.DataString(), "_")
-	if len(dataParts) != 3 {
+	data := cb.DataString()
+	firstUnderscore := strings.Index(data, "_")
+	lastUnderscore := strings.LastIndex(data, "_")
+	if firstUnderscore == -1 || lastUnderscore == -1 || firstUnderscore == lastUnderscore {
 		_, _ = cb.Answer("Invalid selection.", &telegram.CallbackOptions{Alert: true})
 		_, _ = cb.Delete()
 		return nil
 	}
-
+	vidID := data[firstUnderscore+1 : lastUnderscore]
+	userId := data[lastUnderscore+1:]
 	userID := fmt.Sprintf("%d", cb.SenderID)
-	if dataParts[2] != "0" && dataParts[2] != userID {
+	if userId != "0" && userId != userID {
 		_, _ = cb.Answer("This action is not intended for you.", &telegram.CallbackOptions{Alert: true})
 		return nil
 	}
 
 	_, _ = cb.Answer("Processing your request...", &telegram.CallbackOptions{Alert: true})
 
-	track, err := utils.NewApiData("").GetTrack(dataParts[1])
+	track, err := utils.NewApiData("").GetTrack(vidID)
 	if err != nil {
 		cb.Client.Logger.Warn("Failed to fetch track details: " + err.Error())
 		_, _ = cb.Edit("Failed to fetch track details. Please try again later.")
@@ -125,6 +128,7 @@ func SpotifyHandlerCallback(cb *telegram.CallbackQuery) error {
 	progressManager := telegram.NewProgressManager(5)
 	message, _ = message.Edit("Uploading the song...")
 	re := regexp.MustCompile(`https?://t\.me/([^/]+)/(\d+)`)
+
 	matches := re.FindStringSubmatch(audioFile)
 	if len(matches) == 3 {
 		username := matches[1]
@@ -140,9 +144,7 @@ func SpotifyHandlerCallback(cb *telegram.CallbackQuery) error {
 			_, err = message.Edit("Failed to upload the song. Please try again later.")
 		}
 
-		//progressManager.Edit(telegram.MediaDownloadProgress(message, progressManager))
 		if audioFile, err = msgX.Download(&telegram.DownloadOptions{
-			//ProgressManager: progressManager,
 			FileName: msgX.File.Name,
 		}); err != nil {
 			_, err = message.Edit("Failed to download the song. Please try again later." + err.Error())

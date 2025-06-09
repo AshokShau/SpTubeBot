@@ -16,9 +16,10 @@ var urlPatterns = map[string]*regexp.Regexp{
 
 func filterURLChat(m *telegram.NewMessage) bool {
 	text := m.Text()
-	if m.IsCommand() || text == "" || m.IsForward() || m.Message.ViaBotID != 0 {
+	if m.IsCommand() || text == "" || m.IsForward() || m.Message.ViaBotID == m.Client.Me().ID {
 		return false
 	}
+
 	for _, pattern := range urlPatterns {
 		if pattern.MatchString(text) {
 			return true
