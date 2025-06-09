@@ -2,10 +2,14 @@ package src
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/amarnathcjd/gogram/telegram"
+	"io"
+	"net/http"
 	"os"
 	"songBot/src/config"
+	"songBot/src/utils"
 	"strconv"
 	"strings"
 	"time"
@@ -14,29 +18,66 @@ import (
 )
 
 func YtVideoDL(m *telegram.NewMessage) error {
-	yt.MustInstall(context.TODO(), nil)
 	args := m.Args()
 	if args == "" {
-		m.Reply("Provide video url~")
+		m.Reply("Provide video URL~")
 		return nil
 	}
 
-	msg, _ := m.Reply("Downloading video...")
+	msg, _ := m.Reply("Trying direct download from API...")
 
-	// Constants for progress reporting
+	apiUrl := fmt.Sprintf(
+		"https://tgmusic.fallenapi.fun/yt?api_key=%s&id=%s&video=true",
+		config.ApiKey,
+		args,
+	)
+
+	resp, err := http.Get(apiUrl)
+	if err == nil && resp.StatusCode == 200 {
+		defer resp.Body.Close()
+
+		var data struct {
+			Results string `json:"results"`
+		}
+
+		body, _ := io.ReadAll(resp.Body)
+		_ = json.Unmarshal(body, &data)
+
+		if data.Results != "" {
+			filePath, err := utils.DownloadFile(context.Background(), data.Results, "", false)
+			if err == nil {
+				defer os.Remove(filePath)
+				defer msg.Delete()
+				m.ReplyMedia(filePath, telegram.MediaOptions{
+					Attributes: []telegram.DocumentAttribute{
+						//&telegram.DocumentAttributeFilename{FileName: "yt-video.mp4"},
+					},
+					ProgressManager: telegram.NewProgressManager(5).SetMessage(msg),
+				})
+				return nil
+			} else {
+				msg.Edit("API download failed, falling back to yt-dlp...")
+			}
+		} else {
+			msg.Edit("No direct download found. Using yt-dlp...")
+		}
+	} else {
+		msg.Edit("API unreachable. Using yt-dlp...")
+	}
+
+	yt.MustInstall(context.TODO(), nil)
+
 	const (
 		progressUpdateInterval = 7 * time.Second
 		progressBarLength      = 10
 	)
 
 	dl := yt.New().
-		//FormatSort("res:1080,tbr").
 		Format("(bestvideo[height<=?720][width<=?1280][ext=mp4])+(bestaudio[ext=m4a])").
 		NoWarnings().
 		RecodeVideo("mp4").
 		Output("yt-video.mp4").
 		ProgressFunc(progressUpdateInterval, func(update yt.ProgressUpdate) {
-			// Template for progress message
 			text := "<b>~ Downloading Youtube Video ~</b>\n\n" +
 				"<b>📄 Name:</b> <code>%s</code>\n" +
 				"<b>💾 File Size:</b> <code>%.2f MiB</code>\n" +
@@ -44,25 +85,17 @@ func YtVideoDL(m *telegram.NewMessage) error {
 				"<b>⏱ Speed:</b> <code>%s</code>\n" +
 				"<b>⚙️ Progress:</b> %s <code>%.2f%%</code>"
 
-			// Calculate file size in MiB
 			size := float64(update.TotalBytes) / (1024 * 1024)
-
-			// Calculate ETA
 			eta := calculateETA(update)
-
-			// Calculate download speed
 			speed := calculateSpeed(update)
-
-			// Calculate download percentage
 			percent := float64(update.DownloadedBytes) / float64(update.TotalBytes) * 100
+
 			if percent == 0 {
 				msg.Edit("Starting download...")
 				return
 			}
 
-			// Create progress bar
 			progressbar := createProgressBar(percent, progressBarLength)
-
 			message := fmt.Sprintf(text, *update.Info.Title, size, eta, speed, progressbar, percent)
 			msg.Edit(message)
 		}).
@@ -72,7 +105,7 @@ func YtVideoDL(m *telegram.NewMessage) error {
 		Continue().
 		Retries(strconv.Itoa(2))
 
-	_, err := dl.Run(context.TODO(), args)
+	_, err = dl.Run(context.TODO(), args)
 	if err != nil {
 		msg.Edit("<code>video not found.</code>")
 		return nil
@@ -83,16 +116,13 @@ func YtVideoDL(m *telegram.NewMessage) error {
 
 	m.ReplyMedia("yt-video.mp4", telegram.MediaOptions{
 		Attributes: []telegram.DocumentAttribute{
-			&telegram.DocumentAttributeFilename{
-				FileName: "yt-video.mp4",
-			},
+			//&telegram.DocumentAttributeFilename{FileName: "yt-video.mp4"},
 		},
 		ProgressManager: telegram.NewProgressManager(5).SetMessage(msg),
 	})
 	return nil
 }
 
-// calculateETA computes the estimated time remaining for download completion
 func calculateETA(update yt.ProgressUpdate) string {
 	if update.DownloadedBytes == 0 {
 		return "calculating..."
@@ -110,7 +140,6 @@ func calculateETA(update yt.ProgressUpdate) string {
 	return formatDuration(remainingTime)
 }
 
-// calculateSpeed computes the current download speed
 func calculateSpeed(update yt.ProgressUpdate) string {
 	elapsed := time.Since(update.Started)
 	if elapsed.Seconds() == 0 {
@@ -129,14 +158,12 @@ func calculateSpeed(update yt.ProgressUpdate) string {
 	}
 }
 
-// createProgressBar generates a visual progress bar
 func createProgressBar(percent float64, length int) string {
 	filled := int(percent / 100 * float64(length))
 	empty := length - filled
 	return strings.Repeat("■", filled) + strings.Repeat("□", empty)
 }
 
-// formatDuration formats a duration in a human-readable way
 func formatDuration(d time.Duration) string {
 	d = d.Round(time.Second)
 	h := d / time.Hour
