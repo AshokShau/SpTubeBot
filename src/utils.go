@@ -1,23 +1,22 @@
 package src
 
 import (
-	"fmt"
 	"github.com/amarnathcjd/gogram/telegram"
 	"songBot/src/utils"
 )
 
-func prepareTrackMessageOptions(track *utils.SpotifyTrackDetails, file any, thumb []byte, pm *telegram.ProgressManager, caption string) telegram.SendOptions {
+func prepareTrackMessageOptions(track *utils.TrackInfo, file any, thumb []byte, pm *telegram.ProgressManager, caption string) telegram.SendOptions {
 	opts := telegram.SendOptions{
 		Media:   file,
 		Caption: caption,
 		Attributes: []telegram.DocumentAttribute{
-			&telegram.DocumentAttributeFilename{FileName: fmt.Sprintf("%s.ogg", track.Name)},
-			&telegram.DocumentAttributeAudio{Title: track.Name, Performer: track.Artist + " @BeatsXBot", Duration: int32(track.Duration)},
+			//&telegram.DocumentAttributeFilename{FileName: fmt.Sprintf("%s.ogg", track.Name)},
+			&telegram.DocumentAttributeAudio{Title: track.Name, Performer: track.Artist + " @FallenProjects", Duration: int32(track.Duration)},
 		},
 		Spoiler:  true,
 		MimeType: "audio/mpeg",
 		ReplyMarkup: telegram.NewKeyboard().AddRow(
-			telegram.Button.URL("🎵 Info", fmt.Sprintf("https://song.link/s/%s", track.TC)),
+			telegram.Button.URL("Fᴀʟʟᴇɴ PʀᴏJᴇᴄᴛs", "https://t.me/FallenProjects"),
 		).Build(),
 	}
 

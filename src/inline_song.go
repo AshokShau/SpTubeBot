@@ -20,7 +20,7 @@ func SpotifyInlineSearch(query *telegram.InlineQuery) error {
 		return nil
 	}
 
-	searchData, err := utils.NewSpotifyData(args).Search("20")
+	searchData, err := utils.NewApiData(args).Search("20")
 	if err != nil {
 		builder.Article("Error", err.Error(), "Error")
 		_, _ = query.Answer(builder.Results())
@@ -66,7 +66,7 @@ func SpotifyInlineHandler(u telegram.Update, c *telegram.Client) error {
 	songID := i.ID
 
 	// Fetch track details from Spotify
-	track, err := utils.NewSpotifyData("").GetTrack(songID)
+	track, err := utils.NewApiData("").GetTrack(songID)
 	if err != nil {
 		_, _ = c.EditMessage(&i.MsgID, 0, "Spotify song not found.")
 		return nil
