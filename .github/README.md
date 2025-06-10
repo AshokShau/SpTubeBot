@@ -1,118 +1,100 @@
-# 🎵 SongBot Installation Guide
+# 🎵 SongBot - Telegram Music Downloader Bot
 
-A Telegram bot for downloading high-quality songs from Spotify.
+A high-performance Telegram bot for downloading songs from Spotify and YouTube in premium quality.
 
-> 🔑 Need an API Key or URL?
-> Talk to [@FallenApiBot](https://t.me/FallenApiBot)
+<p align="center">
+  <a href="https://github.com/AshokShau/SpTubeBot/stargazers">
+    <img src="https://img.shields.io/github/stars/AshokShau/SpTubeBot?style=flat-square&logo=github" alt="Stars"/>
+  </a>
+  <a href="https://github.com/AshokShau/SpTubeBot/network/members">
+    <img src="https://img.shields.io/github/forks/AshokShau/SpTubeBot?style=flat-square&logo=github" alt="Forks"/>
+  </a>
+  <a href="https://github.com/AshokShau/SpTubeBot/releases">
+    <img src="https://img.shields.io/github/v/release/AshokShau/SpTubeBot?style=flat-square" alt="Release"/>
+  </a>
 
----
+  <a href="https://goreportcard.com/report/github.com/AshokShau/SpTubeBot">
+    <img src="https://goreportcard.com/badge/github.com/AshokShau/SpTubeBot?style=flat-square" alt="Go Report Card"/>
+  </a>
+  <a href="https://img.shields.io/github/go-mod/go-version/AshokShau/SpTubeBot">
+    <img src="https://img.shields.io/github/go-mod/go-version/AshokShau/SpTubeBot?style=flat-square" alt="Go Version"/>
+  </a>
+  <a href="https://golang.org/">
+    <img src="https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat-square&logo=go" alt="Go Version"/>
+  </a>
+  <a href="https://github.com/AshokShau/SpTubeBot/blob/main/LICENSE">
+    <img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License"/>
+  </a>
+  <a href="https://t.me/FallenApiBot">
+    <img src="https://img.shields.io/badge/API_Key-Required-important?style=flat-square" alt="API Key"/>
+  </a>
+</p>
 
-## 💡 Features
+## 🌟 Key Features
 
-* Download high-quality Spotify songs
-* Supports inline mode & private chats
-* Accepts Spotify song, album, or playlist URLs
-* Uploads songs directly to Telegram
-* Easy setup with or without Docker
+- 🎧 Download 320kbps quality songs  
+- ⚡ Lightning-fast Spotify link processing  
+- 📥 Supports single tracks, albums, and playlists  
+- 🤖 Seamless Telegram integration (PM + Groups)  
+- 🐳 Docker-ready for easy deployment  
 
----
+## 🚀 Quick Start
 
-# ⚙️ Installation Steps
+### Prerequisites
 
-## **1. Install Go (Golang)**
+- [Go 1.21+](https://golang.org/dl/)
+- [Telegram Bot Token](https://t.me/BotFather)
+- [Spotify/YouTube API Keys](https://t.me/FallenApiBot)
 
-### ✅ Easiest Method for Everyone:
-
-#### **🖥️ Windows / macOS:**
-
-* Go to: [https://golang.org/doc/install](https://golang.org/doc/install)
-* Download the installer and run it (just like any other app)
-* After installing, open a terminal and check it's working:
-
-  ```bash
-  go version
-  ```
-
-#### **🐧 Linux (1-Line Install):**
-
-Open your terminal and run:
-
-```bash
-git clone https://github.com/udhos/update-golang dlgo && cd dlgo && sudo ./update-golang.sh && source /etc/profile.d/golang_path.sh
-```
-
-Then close and reopen your terminal, and check:
-
-```bash
-go version
-```
-
----
-
-## **2. Download the Bot Code**
-
-In your terminal, run:
+### Basic Installation
 
 ```bash
-git clone https://github.com/AshokShau/SpTubeBot && cd SpTubeBot
-```
+# Clone the repository
+git clone https://github.com/AshokShau/SpTubeBot
+cd SpTubeBot
 
-This will download the code and move you into the bot's folder.
+# Configure environment
+cp sample.env .env
+nano .env  # Edit with your credentials
 
----
-
-## **3. Configure the Bot**
-
-### 🔧 Setup the Environment File
-
-1. Copy the example config:
-
-   ```bash
-   cp sample.env .env
-   ```
-
-2. Edit the `.env` file:
-
-    * On **Windows**: Open it in Notepad or VS Code
-    * On **Linux/Mac**:
-
-      ```bash
-      nano .env
-      ```
-
-      (Edit the values, then press `Ctrl + X`, `Y`, and Enter to save)
-
----
-
-## **4. Run the Bot**
-
-### 🟢 Option 1: Run Without Docker (Simple)
-
-```bash
+# Build & Run
 go build -o songBot
 ./songBot
-```
+````
 
-### 🐳 Option 2: Run With Docker (Clean Setup)
+## 🛠 Advanced Setup
+
+### Docker Deployment
 
 ```bash
 docker build -t songbot .
-docker run --env-file .env --name songbot -d songbot
+docker run -d --name songbot --env-file .env songbot
 ```
 
+## 📚 Usage Guide
+
+| Command          | Description                |
+| ---------------- | -------------------------- |
+| `/start`         | Show welcome message       |
+| `/spotify [url]` | Download from Spotify link |
+| `/vid [url]`     | Download from YouTube link |
+| `/help`          | Show command reference     |
+
+**Inline Mode**: Type `@FallenSongBot` in any chat to search songs instantly!
+
+## 🆘 Support
+
+For issues and feature requests:
+
+* [GitHub Issues](https://github.com/AshokShau/SpTubeBot/issues)
+* Telegram Support: [@FallenProjects](https://t.me/FallenProjects)
+
+## 📜 License
+
+MIT License - See [LICENSE](/LICENSE) for full text.
+
 ---
 
-## ✅ You’re Done! Start Using the Bot
-
-* Open your bot on Telegram
-* Send a song name or a Spotify link
-* You can also use `/spotify` in group chats
-
----
-
-## 🪪 License
-
-This project uses the **MIT License**.
-See the [LICENSE](/LICENSE) file for details.
-
----
+<p align="center">
+❤️ Enjoy the music! Support the project by starring the repo.
+</p>

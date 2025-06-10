@@ -1,14 +1,13 @@
 github.com/ProtonMail/go-crypto v1.3.0 h1:ILq8+Sf5If5DCpHQp4PbZdS1J7HDFRXz/+xKBiRGFrw=
 github.com/ProtonMail/go-crypto v1.3.0/go.mod h1:9whxjD8Rbs29b4XWbB8irEcE8KHMqaR2e7GWU1R+/PE=
-github.com/amarnathcjd/gogram v1.5.10-0.20250610064909-a19d0e632f3d h1:rEZCDNvkkED1qHvJwSsVp9P+8Zlfop380CMNtPTSeyU=
-github.com/amarnathcjd/gogram v1.5.10-0.20250610064909-a19d0e632f3d/go.mod h1:7Ns4qq3IQ5C2j0h4OmkDOzAkVh01bwUEdsfQ0tdRvMU=
+github.com/amarnathcjd/gogram v1.6.0 h1:IiFBCxRlxRN8krTc0uy5Fc9gRHzojOaThgk1bay19Lo=
+github.com/amarnathcjd/gogram v1.6.0/go.mod h1:7Ns4qq3IQ5C2j0h4OmkDOzAkVh01bwUEdsfQ0tdRvMU=
 github.com/cloudflare/circl v1.6.1 h1:zqIqSPIndyBh1bjLVVDHMPpVKqp8Su/V+6MeDzzQBQ0=
 github.com/cloudflare/circl v1.6.1/go.mod h1:uddAzsPgqdMAYatqJ0lsjX1oECcQLIlRpzZh3pJrofs=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/joho/godotenv v1.5.1 h1:7eLL/+HRGLY0ldzfGMeQkb7vMd0as4CfYvUVzLqw0N0=
 github.com/joho/godotenv v1.5.1/go.mod h1:f4LDr5Voq0i2e/R5DDNOoa2zzDfwtkZa6DnEwAbqwq4=
-github.com/lrstanley/go-ytdlp v0.0.0-20250522151933-92513d6ff802/go.mod h1:HpxGaeaOpXVUPxUUmj8Izr3helrDGN90haPtmpY5xzA=
 github.com/lrstanley/go-ytdlp v0.0.0-20250610000944-a2284ab714d8 h1:AjYZyH1sPpWIWvRGBrsGRLPutLmmiVx8Vh3tw9HgIR4=
 github.com/lrstanley/go-ytdlp v0.0.0-20250610000944-a2284ab714d8/go.mod h1:HpxGaeaOpXVUPxUUmj8Izr3helrDGN90haPtmpY5xzA=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
