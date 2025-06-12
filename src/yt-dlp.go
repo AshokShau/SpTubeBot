@@ -31,8 +31,10 @@ func YtVideoDL(m *telegram.NewMessage) error {
 		config.ApiKey,
 		args,
 	)
-
-	resp, err := http.Get(apiUrl)
+	client := &http.Client{
+		Timeout: 60 * time.Second,
+	}
+	resp, err := client.Get(apiUrl)
 	if err == nil && resp.StatusCode == 200 {
 		defer resp.Body.Close()
 
@@ -107,19 +109,23 @@ func YtVideoDL(m *telegram.NewMessage) error {
 
 	_, err = dl.Run(context.TODO(), args)
 	if err != nil {
-		msg.Edit("<code>video not found.</code>")
+		_, _ = msg.Edit("<code>video not found.</code>")
 		return nil
 	}
 
 	defer os.Remove("yt-video.mp4")
 	defer msg.Delete()
 
-	m.ReplyMedia("yt-video.mp4", telegram.MediaOptions{
+	_, err = m.ReplyMedia("yt-video.mp4", telegram.MediaOptions{
 		Attributes: []telegram.DocumentAttribute{
 			//&telegram.DocumentAttributeFilename{FileName: "yt-video.mp4"},
 		},
 		ProgressManager: telegram.NewProgressManager(5).SetMessage(msg),
 	})
+	if err != nil {
+		_, _ = msg.Edit("Error: " + err.Error())
+		return err
+	}
 	return nil
 }
 
