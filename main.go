@@ -3,8 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
-	"songBot/config"
+	"songBot/src/config"
 	"time"
 
 	tg "github.com/amarnathcjd/gogram/telegram"
@@ -12,16 +13,49 @@ import (
 
 var (
 	startTimeStamp = time.Now().Unix()
+	restartClient  = &http.Client{
+		Timeout: 10 * time.Second,
+	}
 )
+
+func autoRestart(interval time.Duration) {
+	if config.CoolifyToken == "" {
+		log.Println("Coolify token not set; autoRestart disabled.")
+		return
+	}
+
+	go func() {
+		for {
+			time.Sleep(interval)
+			restartURL := "https://app.ashok.sbs/api/v1/applications/lkkgog40occ0c8soo8gwcokk/restart"
+			req, err := http.NewRequest("GET", restartURL, nil)
+			if err != nil {
+				log.Printf("[Restart] Failed to create request: %v", err)
+				continue
+			}
+
+			req.Header.Set("Authorization", "Bearer "+config.CoolifyToken)
+
+			resp, err := restartClient.Do(req)
+			if err != nil {
+				log.Printf("[Restart] Failed to make request: %v", err)
+				continue
+			}
+			_ = resp.Body.Close()
+			log.Printf("[Restart] Status: %s", resp.Status)
+		}
+	}()
+}
 
 func main() {
 	if config.Token == "" || config.ApiKey == "" || config.ApiUrl == "" {
-		log.Fatal("Missing environment variables")
+		log.Fatal("Missing environment variables. Please set TOKEN, API_KEY, and API_URL.")
 	}
 
+	// https://pastebin.com/0mWJ7MWQ
 	clientConfig := tg.ClientConfig{
-		AppID:        6,
-		AppHash:      "eb06d4abfb49dc3eeb1aeb98ae0f581e",
+		AppID:        8,
+		AppHash:      "7245de8e747a0d6fbe11f7cc14fcc0bb",
 		Session:      "session.dat",
 		FloodHandler: handleFlood,
 	}
@@ -49,7 +83,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to get bot information: %v", err)
 	}
-
+	go autoRestart(6 * time.Hour)
 	uptime := time.Since(time.Unix(startTimeStamp, 0)).String()
 	client.Logger.Info(fmt.Sprintf("Authenticated as -> @%s, taken: %s.", me.Username, uptime))
 	client.Logger.Info("GoGram version: " + tg.Version)
