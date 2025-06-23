@@ -16,8 +16,8 @@ func StartHandle(m *telegram.NewMessage) error {
 			"▶️ Just send a song name or drop a Spotify/YouTube link.\n"+
 			"💬 Inline search: <code>@%s lofi mood</code>\n"+
 			"📥 Group commands:\n"+
-			" ┗ /spotify <url>\n"+
-			" ┗ /vid <url>\n\n"+
+			" ┗ /spotify url\n"+
+			" ┗ /vid url\n\n"+
 			"Enjoy your music! 🔥",
 		m.Sender.FirstName, me.FirstName, me.Username,
 	)
