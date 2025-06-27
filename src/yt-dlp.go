@@ -1,189 +1,120 @@
 package src
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/amarnathcjd/gogram/telegram"
-	"io"
-	"log"
 	"net/http"
-	"os"
-	"songBot/src/config"
-	"songBot/src/utils"
-	"strconv"
-	"strings"
-	"time"
+	"net/url"
+	"regexp"
 
-	yt "github.com/lrstanley/go-ytdlp"
+	"github.com/amarnathcjd/gogram/telegram"
 )
+
+type YTData struct {
+	Success bool `json:"success"`
+	Data    struct {
+		ID       string `json:"id"`
+		Title    string `json:"title"`
+		Duration int    `json:"duration"`
+		Author   string `json:"author"`
+		Image    string `json:"image"`
+		Videos   []struct {
+			URL      string `json:"url"`
+			Quality  string `json:"quality"`
+			Filesize int    `json:"filesize"`
+		} `json:"videos"`
+		Audios []struct {
+			URL      string  `json:"url"`
+			Quality  float64 `json:"quality"`
+			Filesize int     `json:"filesize"`
+		} `json:"audios"`
+	} `json:"data"`
+}
+
+func isURL(s string) bool {
+	re := regexp.MustCompile(`^https?://(www\.)?(youtube\.com|youtu\.be|music\.youtube\.com)/[^\s]+$`)
+	return re.MatchString(s)
+}
+
+func formatDuration(seconds int) string {
+	_min := seconds / 60
+	sec := seconds % 60
+	return fmt.Sprintf("%02d:%02d", _min, sec)
+}
+
+func formatSize(bytes int) string {
+	return fmt.Sprintf("%.2f MB", float64(bytes)/1024/1024)
+}
 
 func YtVideoDL(m *telegram.NewMessage) error {
 	args := m.Args()
 	if args == "" {
-		m.Reply("Provide video URL~")
+		_, _ = m.Reply("🚫 Please send a valid YouTube URL after the command.")
 		return nil
 	}
 
-	msg, _ := m.Reply("Trying direct download from API...")
-
-	apiUrl := fmt.Sprintf(
-		"https://tgmusic.fallenapi.fun/yt?api_key=%s&id=%s&video=true",
-		config.ApiKey,
-		args,
-	)
-	client := &http.Client{
-		Timeout: 60 * time.Second,
-	}
-	resp, err := client.Get(apiUrl)
-	if err == nil && resp.StatusCode == 200 {
-		defer resp.Body.Close()
-
-		var data struct {
-			Results string `json:"results"`
-		}
-
-		body, _ := io.ReadAll(resp.Body)
-		_ = json.Unmarshal(body, &data)
-
-		if data.Results != "" {
-			filePath, err := utils.DownloadFile(context.Background(), data.Results, "", false)
-			if err == nil {
-				defer os.Remove(filePath)
-				defer msg.Delete()
-				m.ReplyMedia(filePath, telegram.MediaOptions{
-					Attributes: []telegram.DocumentAttribute{
-						//&telegram.DocumentAttributeFilename{FileName: "yt-video.mp4"},
-					},
-					ProgressManager: telegram.NewProgressManager(5).SetMessage(msg),
-				})
-				return nil
-			} else {
-				msg.Edit("API download failed, falling back to yt-dlp...")
-			}
-		} else {
-			msg.Edit("No direct download found. Using yt-dlp...")
-		}
-	} else {
-		log.Println(err)
-		msg.Edit("API unreachable. Using yt-dlp...")
-	}
-
-	yt.MustInstall(context.TODO(), nil)
-
-	const (
-		progressUpdateInterval = 7 * time.Second
-		progressBarLength      = 10
-	)
-
-	dl := yt.New().
-		Format("(bestvideo[height<=?720][width<=?1280][ext=mp4])+(bestaudio[ext=m4a])").
-		NoWarnings().
-		RecodeVideo("mp4").
-		Output("yt-video.mp4").
-		ProgressFunc(progressUpdateInterval, func(update yt.ProgressUpdate) {
-			text := "<b>~ Downloading Youtube Video ~</b>\n\n" +
-				"<b>📄 Name:</b> <code>%s</code>\n" +
-				"<b>💾 File Size:</b> <code>%.2f MiB</code>\n" +
-				"<b>⌛️ ETA:</b> <code>%s</code>\n" +
-				"<b>⏱ Speed:</b> <code>%s</code>\n" +
-				"<b>⚙️ Progress:</b> %s <code>%.2f%%</code>"
-
-			size := float64(update.TotalBytes) / (1024 * 1024)
-			eta := calculateETA(update)
-			speed := calculateSpeed(update)
-			percent := float64(update.DownloadedBytes) / float64(update.TotalBytes) * 100
-
-			if percent == 0 {
-				msg.Edit("Starting download...")
-				return
-			}
-
-			progressbar := createProgressBar(percent, progressBarLength)
-			message := fmt.Sprintf(text, *update.Info.Title, size, eta, speed, progressbar, percent)
-			msg.Edit(message)
-		}).
-		Proxy(config.Proxy).
-		NoWarnings().
-		NoPart().
-		Continue().
-		Retries(strconv.Itoa(2))
-
-	_, err = dl.Run(context.TODO(), args)
-	if err != nil {
-		_, _ = msg.Edit("<code>video not found.</code>")
+	if !isURL(args) {
+		_, _ = m.Reply("❌ That doesn't look like a valid URL. Please check and try again.")
 		return nil
 	}
 
-	defer os.Remove("yt-video.mp4")
-	defer msg.Delete()
+	api := "https://info.fallenapi.fun/youtube/info?url=" + url.QueryEscape(args)
+	resp, err := http.Get(api)
+	if err != nil || resp.StatusCode != 200 {
+		_, _ = m.Reply("⚠️ Failed to fetch video info. Please try again later.")
+		return nil
+	}
+	defer resp.Body.Close()
 
-	_, err = m.ReplyMedia("yt-video.mp4", telegram.MediaOptions{
-		Attributes: []telegram.DocumentAttribute{
-			//&telegram.DocumentAttributeFilename{FileName: "yt-video.mp4"},
-		},
-		ProgressManager: telegram.NewProgressManager(5).SetMessage(msg),
-	})
+	var data YTData
+	if err = json.NewDecoder(resp.Body).Decode(&data); err != nil || !data.Success {
+		_, _ = m.Reply("😞 Could not parse video data. Something went wrong.")
+		return nil
+	}
+
+	title := data.Data.Title
+	image := data.Data.Image
+	author := data.Data.Author
+	duration := formatDuration(data.Data.Duration)
+
+	videoURL := data.Data.Videos[0].URL
+	videoQuality := data.Data.Videos[0].Quality
+	videoSize := formatSize(data.Data.Videos[0].Filesize)
+
+	audioURL := data.Data.Audios[0].URL
+	audioQuality := fmt.Sprintf("%.1f kbps", data.Data.Audios[0].Quality)
+	audioSize := formatSize(data.Data.Audios[0].Filesize)
+
+	caption := fmt.Sprintf(
+		`🎬 <b>%s</b>
+
+👤 <b>Channel:</b> %s
+⏱️ <b>Duration:</b> %s
+
+⬇️ <b>Click the buttons below to download:</b>
+
+🎥 <b>Video:</b> %s • %s
+🎧 <b>Audio:</b> %s • %s`,
+		title, author, duration,
+		videoQuality, videoSize,
+		audioQuality, audioSize,
+	)
+
+	opts := telegram.MediaOptions{
+		ReplyMarkup: telegram.NewKeyboard().
+			AddRow(
+				telegram.Button.URL("🎥 Download Video", videoURL),
+				telegram.Button.URL("🎧 Download Audio", audioURL),
+			).
+			AddRow(
+				telegram.Button.URL("💫 Fᴀʟʟᴇɴ Pʀᴏᴊᴇᴄᴛs", "https://t.me/FallenProjects"),
+			).Build(),
+		Caption: caption,
+	}
+	
+	_, err = m.ReplyMedia(image, opts)
 	if err != nil {
-		_, _ = msg.Edit("Error: " + err.Error())
 		return err
 	}
 	return nil
-}
-
-func calculateETA(update yt.ProgressUpdate) string {
-	if update.DownloadedBytes == 0 {
-		return "calculating..."
-	}
-
-	elapsed := time.Since(update.Started)
-	remainingBytes := update.TotalBytes - update.DownloadedBytes
-	bytesPerSec := float64(update.DownloadedBytes) / elapsed.Seconds()
-
-	if bytesPerSec <= 0 {
-		return "unknown"
-	}
-
-	remainingTime := time.Duration(float64(remainingBytes)/bytesPerSec) * time.Second
-	return formatDuration(remainingTime)
-}
-
-func calculateSpeed(update yt.ProgressUpdate) string {
-	elapsed := time.Since(update.Started)
-	if elapsed.Seconds() == 0 {
-		return "0 B/s"
-	}
-
-	speedBps := float64(update.DownloadedBytes) / elapsed.Seconds()
-
-	switch {
-	case speedBps >= 1024*1024:
-		return fmt.Sprintf("%.2f MB/s", speedBps/(1024*1024))
-	case speedBps >= 1024:
-		return fmt.Sprintf("%.2f KB/s", speedBps/1024)
-	default:
-		return fmt.Sprintf("%.2f B/s", speedBps)
-	}
-}
-
-func createProgressBar(percent float64, length int) string {
-	filled := int(percent / 100 * float64(length))
-	empty := length - filled
-	return strings.Repeat("■", filled) + strings.Repeat("□", empty)
-}
-
-func formatDuration(d time.Duration) string {
-	d = d.Round(time.Second)
-	h := d / time.Hour
-	d -= h * time.Hour
-	m := d / time.Minute
-	d -= m * time.Minute
-	s := d / time.Second
-
-	switch {
-	case h > 0:
-		return fmt.Sprintf("%02d:%02d:%02d", h, m, s)
-	default:
-		return fmt.Sprintf("%02d:%02d", m, s)
-	}
 }

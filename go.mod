@@ -6,7 +6,7 @@ require (
 	github.com/amarnathcjd/gogram v1.6.0
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
-	github.com/lrstanley/go-ytdlp v0.0.0-20250623032400-b19140b9c5ea
+	github.com/lrstanley/go-ytdlp v0.0.0-20250626003057-250a0ba9f4c5
 )
 
 require (

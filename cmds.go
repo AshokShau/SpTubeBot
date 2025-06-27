@@ -11,7 +11,7 @@ var urlPatterns = map[string]*regexp.Regexp{
 	"spotify":       regexp.MustCompile(`^(https?://)?(open\.spotify\.com/(track|playlist|album|artist)/[a-zA-Z0-9]+)(\?.*)?$`),
 	"youtube":       regexp.MustCompile(`^(https?://)?(www\.)?(youtube\.com/watch\?v=|youtu\.be/)[a-zA-Z0-9_-]+(\?.*)?$`),
 	"youtube_music": regexp.MustCompile(`^(https?://)?(music\.)?youtube\.com/(watch\?v=|playlist\?list=)[a-zA-Z0-9_-]+(\?.*)?$`),
-	"soundcloud":    regexp.MustCompile(`^(https?://)?(www\.)?soundcloud\.com/[a-zA-Z0-9_-]+(/(sets)?/[a-zA-Z0-9_-]+)?(\?.*)?$`),
+	"soundcloud":    regexp.MustCompile(`^(https?://)?(www\.)?soundcloud\.com/[a-zA-Z0-9_-]+(/[a-zA-Z0-9_-]+)?(/sets/[a-zA-Z0-9_-]+)?(\?.*)?$`),
 	"apple_music":   regexp.MustCompile(`^(https?://)?(music|geo)\.apple\.com/[a-z]{2}/(album|playlist|song)/[^/]+/[0-9]+(\?i=[0-9]+)?(\?.*)?$`),
 }
 
