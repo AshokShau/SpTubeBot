@@ -2,15 +2,16 @@ package src
 
 import (
 	"fmt"
-	"github.com/amarnathcjd/gogram/telegram"
 	"os"
 	"regexp"
-	"songBot/src/utils"
 	"strconv"
 	"strings"
+
+	"github.com/amarnathcjd/gogram/telegram"
+	"songBot/src/utils"
 )
 
-// SpotifySearchSong handles song search requests from messages.
+// SpotifySearchSong handles song search requests from user messages.
 func SpotifySearchSong(m *telegram.NewMessage) error {
 	songName := m.Text()
 	if m.IsCommand() {
@@ -18,40 +19,37 @@ func SpotifySearchSong(m *telegram.NewMessage) error {
 	}
 
 	if songName == "" {
-		_, err := m.Reply("Please provide a song name to search. or spotify url.")
+		_, err := m.Reply("❗ Please provide a song name or Spotify URL.")
 		return err
 	}
 
 	sp := utils.NewApiData(songName)
 	kb := telegram.NewKeyboard()
+
 	if sp.IsValid(songName) {
 		song, err := sp.GetInfo(songName)
 		if err != nil {
-			_, _ = m.Reply(fmt.Sprintf("Error: %v", err))
+			_, _ = m.Reply(fmt.Sprintf("⚠️ Error: %v", err))
 			return nil
 		}
 
 		if song == nil || len(song.Results) == 0 {
-			_, _ = m.Reply("Song not found.")
+			_, _ = m.Reply("😢 Song not found.")
 			return nil
 		}
 
 		for _, track := range song.Results {
 			data := fmt.Sprintf("spot_%s_0", utils.EncodeURL(track.URL))
-			kb.AddRow(telegram.Button.Data(
-				fmt.Sprintf("%s - %s", track.Name, track.Artist),
-				data,
-			))
+			kb.AddRow(telegram.Button.Data(fmt.Sprintf("%s - %s", track.Name, track.Artist), data))
 		}
 
-		_, err = m.Reply("<b>Select a song from below:</b>", telegram.SendOptions{
+		_, err = m.Reply("<b>🎧 Select a song from below:</b>", telegram.SendOptions{
 			ReplyMarkup: kb.Build(),
 		})
 
 		if err != nil {
 			m.Client.Log.Error(err.Error())
-			_, _ = m.Reply("Too many results. plz use track url. or less then 50 songs in playlist.")
-			return nil
+			_, _ = m.Reply("⚠️ Too many results. Please use a direct track URL or reduce playlist size (max 50).")
 		}
 
 		return nil
@@ -59,12 +57,12 @@ func SpotifySearchSong(m *telegram.NewMessage) error {
 
 	search, err := sp.Search("5")
 	if err != nil {
-		_, _ = m.Reply("Failed to search for song." + err.Error())
+		_, _ = m.Reply("❌ Failed to search for song: " + err.Error())
 		return nil
 	}
 
 	if len(search.Results) == 0 {
-		_, _ = m.Reply("No results found.")
+		_, _ = m.Reply("😔 No results found.")
 		return nil
 	}
 
@@ -75,99 +73,86 @@ func SpotifySearchSong(m *telegram.NewMessage) error {
 		))
 	}
 
-	// Send the search results with a keyboard
-	_, err = m.Reply("<b>Select a song from below:</b>", telegram.SendOptions{
+	_, err = m.Reply("<b>🎧 Select a song from below:</b>", telegram.SendOptions{
 		ReplyMarkup: kb.Build(),
 	})
 
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
+// SpotifyHandlerCallback handles button presses for downloading Spotify songs.
 func SpotifyHandlerCallback(cb *telegram.CallbackQuery) error {
 	data := cb.DataString()
-	firstUnderscore := strings.Index(data, "_")
-	lastUnderscore := strings.LastIndex(data, "_")
-	if firstUnderscore == -1 || lastUnderscore == -1 || firstUnderscore == lastUnderscore {
-		_, _ = cb.Answer("Invalid selection.", &telegram.CallbackOptions{Alert: true})
+	first := strings.Index(data, "_")
+	last := strings.LastIndex(data, "_")
+
+	if first == -1 || last == -1 || first == last {
+		_, _ = cb.Answer("❌ Invalid selection.", &telegram.CallbackOptions{Alert: true})
 		_, _ = cb.Delete()
 		return nil
 	}
-	vidID := data[firstUnderscore+1 : lastUnderscore]
-	userId := data[lastUnderscore+1:]
-	userID := fmt.Sprintf("%d", cb.SenderID)
-	if userId != "0" && userId != userID {
-		_, _ = cb.Answer("This action is not intended for you.", &telegram.CallbackOptions{Alert: true})
+
+	vidID := data[first+1 : last]
+	userIDStr := data[last+1:]
+	if userIDStr != "0" && userIDStr != fmt.Sprint(cb.SenderID) {
+		_, _ = cb.Answer("🚫 This action is not meant for you.", &telegram.CallbackOptions{Alert: true})
 		return nil
 	}
 
-	_, _ = cb.Answer("Processing your request...", &telegram.CallbackOptions{Alert: true})
+	_, _ = cb.Answer("🔄 Processing your request...", &telegram.CallbackOptions{Alert: true})
 
 	url, err := utils.DecodeURL(vidID)
 	if err != nil {
 		cb.Client.Logger.Warn("Failed to decode URL:", err.Error())
-		_, _ = cb.Edit("Failed to decode URL. Please try again later.")
+		_, _ = cb.Edit("❌ Failed to decode the URL.")
 		return nil
 	}
 
 	track, err := utils.NewApiData("").GetTrack(url)
 	if err != nil {
-		cb.Client.Logger.Warn("Failed to fetch track details: " + err.Error())
-		_, _ = cb.Edit("Failed to fetch track details. Please try again later.")
+		cb.Client.Logger.Warn("Failed to fetch track details:", err.Error())
+		_, _ = cb.Edit("❌ Could not fetch track details.")
 		return nil
 	}
 
-	message, _ := cb.Edit("Downloading the song...")
+	msg, _ := cb.Edit("⏬ Downloading the song...")
 	downloader := utils.NewDownload(*track)
 	audioFile, thumbnail, err := downloader.Process()
-	if err != nil {
-		cb.Client.Logger.Warn("Failed to process the song:", err.Error())
-		_, _ = message.Edit("Failed to process the song. Please try again later.")
+	if err != nil || audioFile == "" {
+		if err != nil {
+			cb.Client.Logger.Warn("Failed to download or process the song:", err.Error())
+		}
+		_, _ = msg.Edit("⚠️ Failed to download the song.")
 		return nil
 	}
 
-	if audioFile == "" {
-		cb.Client.Logger.Warn("Failed to download the song:")
-		_, _ = message.Edit("Failed to download the song. Please try again later.")
-		return nil
-	}
-	progressManager := telegram.NewProgressManager(5)
-	message, _ = message.Edit("Uploading the song...")
+	progress := telegram.NewProgressManager(5)
+	msg, _ = msg.Edit("⏫ Uploading the song...")
+
 	re := regexp.MustCompile(`https?://t\.me/([^/]+)/(\d+)`)
-
-	matches := re.FindStringSubmatch(audioFile)
-	if len(matches) == 3 {
+	if matches := re.FindStringSubmatch(audioFile); len(matches) == 3 {
 		username := matches[1]
 		messageID, err := strconv.Atoi(matches[2])
-		if err != nil {
-			cb.Client.Logger.Warn("Failed to upload the song:", err.Error())
-			_, err = message.Edit("Failed to upload the song. Please try again later.")
-		}
-
-		msgX, err := message.Client.GetMessageByID(username, int32(messageID))
-		if err != nil {
-			cb.Client.Logger.Warn("Failed to upload the song:", err.Error())
-			_, err = message.Edit("Failed to upload the song. Please try again later.")
-		}
-
-		if audioFile, err = msgX.Download(&telegram.DownloadOptions{
-			FileName: msgX.File.Name,
-		}); err != nil {
-			_, err = message.Edit("Failed to download the song. Please try again later." + err.Error())
-			return nil
+		if err == nil {
+			msgRef, err := msg.Client.GetMessageByID(username, int32(messageID))
+			if err == nil {
+				audioFile, err = msgRef.Download(&telegram.DownloadOptions{FileName: msgRef.File.Name})
+				if err != nil {
+					_, _ = msg.Edit("⚠️ Could not download the song file. " + err.Error())
+					return nil
+				}
+			}
 		}
 	}
 
-	progressManager.Edit(telegram.MediaDownloadProgress(message, progressManager))
-	caption := fmt.Sprintf("<b> %s- %d</b>\n<b>Artist:</b> %s", track.Name, track.Year, track.Artist)
-	options := prepareTrackMessageOptions(track, audioFile, thumbnail, progressManager, caption)
-	_, err = message.Edit(caption, options)
-	if err != nil {
-		cb.Client.Logger.Warn("Failed to send the track:", err.Error())
-		_, _ = message.Edit("Failed to send the track.")
+	progress.Edit(telegram.MediaDownloadProgress(msg, progress))
+
+	caption := fmt.Sprintf("<b>🎶 %s - %d</b>\n<b>Artist:</b> %s", track.Name, track.Year, track.Artist)
+	options := prepareTrackMessageOptions(track, audioFile, thumbnail, progress, caption)
+
+	if _, err := msg.Edit(caption, options); err != nil {
+		cb.Client.Logger.Warn("Failed to send track:", err.Error())
+		_, _ = msg.Edit("❌ Failed to send the track.")
 		return nil
 	}
 

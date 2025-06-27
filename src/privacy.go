@@ -5,46 +5,70 @@ import (
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
+// PrivacyHandle sends the bot's privacy policy to the user
 func PrivacyHandle(m *telegram.NewMessage) error {
-	botName := m.Client.Me().FirstName
+	bot := m.Client.Me()
+	botName := bot.FirstName
+	githubURL := "https://github.com/AshokShau/SpTubeBot"
+	contactURL := "https://t.me/FallenProjects"
 
 	privacyText := fmt.Sprintf(`
 <b>Privacy Policy for %s</b>
 
 <b>Last updated:</b> 8 June 2025
 
-Thank you for using <b>@%s</b>. Your privacy is important to us. This Privacy Policy outlines what information we do and do not collect when you use this Telegram bot.
+Thank you for using <b>@%s</b>. Your privacy is important to us. This Privacy Policy explains how we handle your information.
 
 <b>1. Data Collection and Storage</b>
-We do <b>not collect, store, or share</b> any user data.
-- The bot does <b>not</b> log your messages, usernames, IDs, or song requests.
-- All processing is done in real time, and <b>no data is saved on the server</b> after your request is completed.
+We do <b>not</b> collect, store, or share any user data.
+- No message logging (text, commands, or requests)
+- No user information storage (usernames, IDs, etc.)
+- All processing happens in real-time with no persistent storage
 
-<b>2. Functionality</b>
-%s helps users download songs from platforms like <b>Spotify</b> and <b>YouTube</b> via Telegram.
-- It processes links or search queries and returns audio files to the user.
-- The bot acts as a temporary bridge — once your song is delivered, the related data is discarded.
+<b>2. How We Work</b>
+%s helps download songs from various platforms:
+- Processes links/search queries
+- Returns audio files directly to you
+- Immediately discards all related data after delivery
 
 <b>3. Third-Party Services</b>
-To function, %s fetches data from third-party platforms like:
-- <b>YouTube</b>
-- <b>Spotify</b>
-These services have their own privacy policies and data handling practices. %s <b>does not control or assume responsibility</b> for them.
+We interact with these platforms (review their policies):
+- YouTube
+- Spotify
+- Apple Music
+- SoundCloud
+%s <b>does not control</b> these services' data practices.
 
-<b>4. Open Source</b>
-This bot is fully open source. You can review, audit, or contribute to the project on GitHub: <a href="https://github.com/AshokShau/SpTubeBot">https://github.com/AshokShau/SpTubeBot</a>
+<b>4. Open Source Transparency</b>
+The complete source code is available for review:
+<a href="%s">%s</a>
 
 <b>5. Security</b>
-Although no data is stored, we take basic steps to ensure your interaction with the bot is secure and private during processing.
+While no data is stored, we implement basic security measures for your protection during processing.
 
-<b>6. Changes to This Policy</b>
-We may update this Privacy Policy if necessary. Any changes will be posted here with the updated date.
+<b>6. Policy Updates</b>
+We may update this policy occasionally. The "Last updated" date will reflect changes.
 
-<b>7. Contact</b><br>
-For any questions or concerns, feel free to reach out via GitHub Issues or Telegram:
-<a href="https://t.me/FallenProjects">@FallenProjects</a>
-`, botName, botName, botName, botName, botName)
+<b>7. Contact Us</b>
+For questions or concerns:
+<a href="%s">@FallenProjects</a> (Telegram)
+or GitHub Issues
+`,
+		botName, botName, botName, botName,
+		githubURL, githubURL,
+		contactURL,
+	)
 
-	_, _ = m.Reply(privacyText)
-	return nil
+	// Add a keyboard with quick links
+	keyboard := telegram.NewKeyboard().
+		AddRow(
+			telegram.Button.URL("📂 GitHub", githubURL),
+			telegram.Button.URL("📩 Contact", contactURL),
+		)
+
+	_, err := m.Reply(privacyText, telegram.SendOptions{
+		ReplyMarkup: keyboard.Build(),
+	})
+
+	return err
 }

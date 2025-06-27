@@ -12,31 +12,33 @@ import (
 	"songBot/src/config"
 )
 
-// Constants for API configuration
+// Constants for API configuration and validation
 const (
-	apiTimeout     = 60 * time.Second
-	defaultLimit   = "10"
-	maxQueryLength = 100
-	maxURLLength   = 2048
+	apiTimeout      = 60 * time.Second
+	defaultLimit    = "10"
+	maxQueryLength  = 50
+	maxURLLength    = 500
+	headerAccept    = "Accept"
+	headerAPIKey    = "X-API-Key"
+	mimeApplication = "application/json"
 )
 
-// URL patterns for supported platforms
+// URL patterns to detect supported music platforms
 var urlPatterns = map[string]*regexp.Regexp{
 	"spotify":       regexp.MustCompile(`^(https?://)?(open\.spotify\.com/(track|playlist|album|artist)/[a-zA-Z0-9]+)(\?.*)?$`),
-	"youtube":       regexp.MustCompile(`^(https?://)?(www\.)?(youtube\.com/watch\?v=|youtu\.be/)[a-zA-Z0-9_-]+(\?.*)?$`),
-	"youtube_music": regexp.MustCompile(`^(https?://)?(music\.)?youtube\.com/(watch\?v=|playlist\?list=)[a-zA-Z0-9_-]+(\?.*)?$`),
-	"soundcloud":    regexp.MustCompile(`^(https?://)?(www\.)?soundcloud\.com/[a-zA-Z0-9_-]+(/[a-zA-Z0-9_-]+)?(/sets/[a-zA-Z0-9_-]+)?(\?.*)?$`),
-	"apple_music":   regexp.MustCompile(`^(https?://)?(music|geo)\.apple\.com/[a-z]{2}/(album|playlist|song)/[^/]+/[0-9]+(\?i=[0-9]+)?(\?.*)?$`),
-}
+	"youtube":       regexp.MustCompile(`^(https?://)?(www\.)?(youtube\.com/watch\?v=|youtu\.be/)[\w-]+(\?.*)?$`),
+	"youtube_music": regexp.MustCompile(`^(https?://)?(music\.)?youtube\.com/(watch\?v=|playlist\?list=)[\w-]+(\?.*)?$`),
+	"soundcloud":    regexp.MustCompile(`^(https?://)?(www\.)?soundcloud\.com/[\w-]+(/[\w-]+)?(/sets/[\w-]+)?(\?.*)?$`),
+	"apple_music":   regexp.MustCompile(`^(https?://)?(music|geo)\.apple\.com/[a-z]{2}/(album|playlist|song)/[^/]+/\d+(\?i=\d+)?(\?.*)?$`)}
 
-// ApiData represents the API client and configuration
+// ApiData represents a reusable HTTP client for API operations
 type ApiData struct {
 	ApiUrl string
 	Client *http.Client
 	Query  string
 }
 
-// NewApiData creates a new ApiData instance with proper initialization
+// NewApiData creates and returns an ApiData instance
 func NewApiData(query string) *ApiData {
 	return &ApiData{
 		ApiUrl: config.ApiUrl,
@@ -45,13 +47,12 @@ func NewApiData(query string) *ApiData {
 	}
 }
 
-// IsValid checks if the URL is valid and supported
-func (s *ApiData) IsValid(rawURL string) bool {
+// IsValid checks if the provided URL is valid and belongs to a supported platform
+func (api *ApiData) IsValid(rawURL string) bool {
 	if rawURL == "" || len(rawURL) > maxURLLength {
 		return false
 	}
 
-	// Basic URL format validation
 	if _, err := url.ParseRequestURI(rawURL); err != nil {
 		return false
 	}
@@ -64,27 +65,25 @@ func (s *ApiData) IsValid(rawURL string) bool {
 	return false
 }
 
-// GetInfo fetches track information for a given URL
-func (s *ApiData) GetInfo(rawURL string) (*PlatformTracks, error) {
-	if !s.IsValid(rawURL) {
+// GetInfo fetches track or playlist details from a given URL
+func (api *ApiData) GetInfo(rawURL string) (*PlatformTracks, error) {
+	if !api.IsValid(rawURL) {
 		return nil, errors.New("invalid or unsupported URL")
 	}
-
-	return s.FetchData(rawURL)
+	return api.FetchData(rawURL)
 }
 
-// FetchData makes the actual API request to fetch data
-func (s *ApiData) FetchData(rawURL string) (*PlatformTracks, error) {
-	apiURL := fmt.Sprintf("%s/get_url?url=%s", s.ApiUrl, url.QueryEscape(rawURL))
-	req, err := http.NewRequest("GET", apiURL, nil)
+// FetchData performs a GET request to /get_url to retrieve platform metadata
+func (api *ApiData) FetchData(rawURL string) (*PlatformTracks, error) {
+	endpoint := fmt.Sprintf("%s/get_url?url=%s", api.ApiUrl, url.QueryEscape(rawURL))
+	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
-		return nil, fmt.Errorf("error creating request: %w", err)
+		return nil, fmt.Errorf("creating request failed: %w", err)
 	}
 
-	req.Header.Set("X-API-Key", config.ApiKey)
-	req.Header.Set("Accept", "application/json")
+	api.setHeaders(req)
 
-	resp, err := s.Client.Do(req)
+	resp, err := api.Client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}
@@ -94,34 +93,34 @@ func (s *ApiData) FetchData(rawURL string) (*PlatformTracks, error) {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
-	var data PlatformTracks
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+	var result PlatformTracks
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("JSON decode failed: %w", err)
 	}
 
-	return &data, nil
+	return &result, nil
 }
 
-// Search performs a track search with the given query
-func (s *ApiData) Search(limit string) (*PlatformTracks, error) {
+// Search performs a keyword-based song search on the API
+func (api *ApiData) Search(limit string) (*PlatformTracks, error) {
 	if limit == "" {
 		limit = defaultLimit
 	}
 
-	searchURL := fmt.Sprintf("%s/search_track/%s?lim=%s",
-		s.ApiUrl,
-		url.QueryEscape(s.Query),
-		url.QueryEscape(limit))
+	endpoint := fmt.Sprintf("%s/search_track/%s?lim=%s",
+		api.ApiUrl,
+		url.QueryEscape(api.Query),
+		url.QueryEscape(limit),
+	)
 
-	req, err := http.NewRequest("GET", searchURL, nil)
+	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
-		return nil, fmt.Errorf("error creating request: %w", err)
+		return nil, fmt.Errorf("creating request failed: %w", err)
 	}
 
-	req.Header.Set("X-API-Key", config.ApiKey)
-	req.Header.Set("Accept", "application/json")
+	api.setHeaders(req)
 
-	resp, err := s.Client.Do(req)
+	resp, err := api.Client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}
@@ -131,31 +130,29 @@ func (s *ApiData) Search(limit string) (*PlatformTracks, error) {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
-	var data PlatformTracks
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+	var result PlatformTracks
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("JSON decode failed: %w", err)
 	}
 
-	return &data, nil
+	return &result, nil
 }
 
-// GetTrack fetches detailed information for a specific track
-func (s *ApiData) GetTrack(trackID string) (*TrackInfo, error) {
+// GetTrack fetches metadata for a specific track by its ID
+func (api *ApiData) GetTrack(trackID string) (*TrackInfo, error) {
 	if trackID == "" {
 		return nil, errors.New("empty track ID")
 	}
 
-	trackURL := fmt.Sprintf("%s/get_track?id=%s", s.ApiUrl, url.QueryEscape(trackID))
-
-	req, err := http.NewRequest("GET", trackURL, nil)
+	endpoint := fmt.Sprintf("%s/get_track?id=%s", api.ApiUrl, url.QueryEscape(trackID))
+	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
-		return nil, fmt.Errorf("error creating request: %w", err)
+		return nil, fmt.Errorf("creating request failed: %w", err)
 	}
 
-	req.Header.Set("X-API-Key", config.ApiKey)
-	req.Header.Set("Accept", "application/json")
+	api.setHeaders(req)
 
-	resp, err := s.Client.Do(req)
+	resp, err := api.Client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}
@@ -165,15 +162,21 @@ func (s *ApiData) GetTrack(trackID string) (*TrackInfo, error) {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
-	var data TrackInfo
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+	var track TrackInfo
+	if err := json.NewDecoder(resp.Body).Decode(&track); err != nil {
+		return nil, fmt.Errorf("JSON decode failed: %w", err)
 	}
 
-	return &data, nil
+	return &track, nil
 }
 
-// sanitizeInput performs basic input sanitization
+// setHeaders sets common headers on the HTTP request
+func (api *ApiData) setHeaders(req *http.Request) {
+	req.Header.Set(headerAPIKey, config.ApiKey)
+	req.Header.Set(headerAccept, mimeApplication)
+}
+
+// sanitizeInput trims overly long queries
 func sanitizeInput(input string) string {
 	if len(input) > maxQueryLength {
 		return input[:maxQueryLength]

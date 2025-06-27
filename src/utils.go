@@ -5,33 +5,43 @@ import (
 	"songBot/src/utils"
 )
 
-func prepareTrackMessageOptions(track *utils.TrackInfo, file any, thumb []byte, pm *telegram.ProgressManager, caption string) telegram.SendOptions {
+// prepareTrackMessageOptions builds SendOptions to send an audio track.
+func prepareTrackMessageOptions(
+	track *utils.TrackInfo,
+	file any,
+	thumb []byte,
+	pm *telegram.ProgressManager,
+	caption string,
+) telegram.SendOptions {
 	opts := telegram.SendOptions{
-		Media:   file,
-		Caption: caption,
-		Attributes: []telegram.DocumentAttribute{
-			//&telegram.DocumentAttributeFilename{FileName: fmt.Sprintf("%s.ogg", track.Name)},
-			&telegram.DocumentAttributeAudio{Title: track.Name, Performer: track.Artist + " @FallenProjects", Duration: int32(track.Duration)},
-		},
-		Spoiler:  true,
+		Media:    file,
+		Caption:  caption,
 		MimeType: "audio/mpeg",
+		Spoiler:  true,
+		Attributes: []telegram.DocumentAttribute{
+			&telegram.DocumentAttributeAudio{
+				Title:     track.Name,
+				Performer: track.Artist + " @FallenProjects",
+				Duration:  int32(track.Duration),
+			},
+		},
 		ReplyMarkup: telegram.NewKeyboard().AddRow(
-			telegram.Button.URL("Fᴀʟʟᴇɴ PʀᴏJᴇᴄᴛs", "https://t.me/FallenProjects"),
+			telegram.Button.URL("🎧 Fᴀʟʟᴇɴ Pʀᴏᴊᴇᴄᴛꜱ", "https://t.me/FallenProjects"),
 		).Build(),
-	}
-
-	if pm != nil {
-		opts.ProgressManager = pm
 	}
 
 	if thumb != nil {
 		opts.Thumb = thumb
 	}
+	if pm != nil {
+		opts.ProgressManager = pm
+	}
 
 	return opts
 }
 
+// GoGramVersion responds with the current GoGram version.
 func GoGramVersion(m *telegram.NewMessage) error {
-	_, _ = m.Reply("GoGram Version: " + telegram.Version)
-	return nil
+	_, err := m.Reply("🤖 <b>GoGram Version:</b> " + telegram.Version)
+	return err
 }
