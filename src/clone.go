@@ -126,7 +126,7 @@ func stopHandler(m *telegram.NewMessage) error {
 		return err
 	}
 
-	if err = config.RemoveBotToken(m.SenderID()); err != nil {
+	if err = config.RemoveBotToken(botToken); err != nil {
 		log.Printf("❌ Failed to remove bot token for user %d: %v", m.SenderID(), err)
 		_, _ = m.Reply("❌ Couldn't remove your token from DB:\n" + err.Error())
 	}

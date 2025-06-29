@@ -71,6 +71,7 @@ func buildAndStart(index int, token string) (*tg.Client, bool) {
 
 	if err = client.LoginBot(token); err != nil {
 		log.Printf("[Client %d] ❌ Bot login failed: %v", index, err)
+		_ = config.RemoveBotToken(token)
 		return nil, false
 	}
 

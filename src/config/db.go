@@ -160,11 +160,21 @@ func GetBotTokenByUserID(userID int64) (string, error) {
 	return user.BotToken, nil
 }
 
-// RemoveBotToken clears the bot token for the given user ID
-func RemoveBotToken(userID int64) error {
-	update := bson.M{
-		"$unset": bson.M{"bot_token": ""},
+// RemoveBotToken unsets the bot_token field for the user that owns the given token
+func RemoveBotToken(token string) error {
+	if token == "" {
+		return errors.New("token is empty")
 	}
-	_, err := collection.UpdateByID(ctx, userID, update)
-	return err
+
+	filter := bson.M{"bot_token": token}
+	update := bson.M{"$unset": bson.M{"bot_token": ""}}
+
+	res, err := collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
+		return errors.New("no user found with this token")
+	}
+	return nil
 }
