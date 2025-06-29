@@ -75,6 +75,7 @@ func InitFunc(c *telegram.Client) {
 	c.On("command:ping", pingHandle)
 	c.On("command:spotify", spotifySearchSong)
 	c.On("command:privacy", privacyHandle)
+	c.On("command:stop", stopHandler)
 
 	// Inline query and inline result handler
 	c.On(telegram.OnInline, spotifyInlineSearch)

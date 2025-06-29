@@ -2,12 +2,12 @@ package src
 
 import (
 	"fmt"
+	"github.com/amarnathcjd/gogram/telegram"
 	"log"
 	"regexp"
-	"strings"
-
-	"github.com/amarnathcjd/gogram/telegram"
 	"songBot/src/config"
+	"strconv"
+	"strings"
 )
 
 var tokenRegex = regexp.MustCompile(`\b\d{6,}:[\w-]{30,}\b`)
@@ -78,7 +78,7 @@ func cloneHandle(m *telegram.NewMessage) error {
 			"" + err.Error())
 	} else {
 		me := client.Me()
-		m.Client.Logger.Info("Bot cloned successfully", "bot_name", me.FirstName, "bot_username", me.Username, "bot_id", me.ID)
+		m.Client.Logger.Info("Bot cloned successfully  ", " bot_name ", me.FirstName, " bot_username ", me.Username, " bot_id ", me.ID)
 		_, _ = msg.Edit(fmt.Sprintf(
 			`✅ <b>Your bot was cloned successfully and saved!</b>
 
@@ -91,4 +91,50 @@ func cloneHandle(m *telegram.NewMessage) error {
 
 	InitFunc(client)
 	return nil
+}
+
+func stopHandler(m *telegram.NewMessage) error {
+	if !m.IsPrivate() {
+		return nil
+	}
+
+	botToken, err := config.GetBotTokenByUserID(m.SenderID())
+	if err != nil {
+		_, err = m.Reply("❌ Failed to fetch your bot token.\n" + err.Error())
+		return err
+	}
+
+	if botToken == "" {
+		_, err = m.Reply("⚠️ You haven't added any bot token yet.\nPlease forward a valid token from @BotFather.")
+		return err
+	}
+
+	botId := extractBotIDFromToken(botToken)
+	if botId == "" {
+		_, err = m.Reply("❌ Failed to parse Bot ID from your token.")
+		return err
+	}
+
+	int64BotID, err := strconv.ParseInt(botId, 10, 64)
+	if err != nil {
+		_, err = m.Reply("❌ Invalid Bot ID in token.")
+		return err
+	}
+
+	if m.Client.Me().ID != int64BotID {
+		_, err = m.Reply("🚫 This is not your cloned bot.\nPlease send /stop only to your own bot.")
+		return err
+	}
+
+	if err = config.RemoveBotToken(m.SenderID()); err != nil {
+		log.Printf("❌ Failed to remove bot token for user %d: %v", m.SenderID(), err)
+		_, _ = m.Reply("❌ Couldn't remove your token from DB:\n" + err.Error())
+	}
+
+	_ = m.Client.Disconnect()
+	if err := m.Client.Stop(); err != nil {
+		_, _ = m.Reply("❌ Failed to stop bot:\n" + err.Error())
+	}
+
+	return err
 }

@@ -29,9 +29,13 @@ func main() {
 	Tokens, err := config.GetAllBotTokens()
 	if err == nil && len(Tokens) > 0 {
 		log.Printf("Starting %d clients.", len(Tokens))
-		for i, token := range Tokens {
-			go startClient(i, token)
+		for i := 1; i <= len(Tokens); i++ {
+			go buildAndStart(i, Tokens[i-1])
 		}
+	} else if err != nil {
+		log.Printf("Failed to retrieve bot tokens: %v", err)
+	} else {
+		log.Println("No bot tokens found.")
 	}
 
 	// Start main client
@@ -40,23 +44,9 @@ func main() {
 		log.Fatalf("[Client] Startup failed")
 	}
 
-	go autoRestart(12 * time.Hour)
+	go autoRestart(24 * time.Hour)
 	client.Idle()
 	log.Printf("[Client 0] Bot stopped.")
-}
-
-func startClient(index int, token string) {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Printf("[Client %d] ❌ Panic: %v", index, r)
-		}
-	}()
-
-	_, ok := buildAndStart(index, token)
-	if !ok {
-		log.Printf("[Client %d] ❌ Startup failed", index)
-		return
-	}
 }
 
 func buildAndStart(index int, token string) (*tg.Client, bool) {
@@ -66,7 +56,6 @@ func buildAndStart(index int, token string) (*tg.Client, bool) {
 		MemorySession: true,
 		FloodHandler:  handleFlood,
 		SessionName:   fmt.Sprintf("bot_%d", index),
-		Session:       fmt.Sprintf("session_%d.dat", index),
 	}
 
 	client, err := tg.NewClient(clientConfig)
@@ -85,7 +74,6 @@ func buildAndStart(index int, token string) (*tg.Client, bool) {
 		return nil, false
 	}
 
-	src.InitFunc(client)
 	me, err := client.GetMe()
 	if err != nil {
 		log.Printf("[Client %d] ❌ Failed to get bot info: %v", index, err)
@@ -94,6 +82,7 @@ func buildAndStart(index int, token string) (*tg.Client, bool) {
 
 	uptime := time.Since(time.Unix(startTimeStamp, 0)).String()
 	client.Logger.Info(fmt.Sprintf("✅ Client %d: @%s (Startup in %s)", index, me.Username, uptime))
+	src.InitFunc(client)
 	return client, true
 }
 

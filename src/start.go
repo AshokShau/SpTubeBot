@@ -12,31 +12,41 @@ import (
 func startHandle(m *telegram.NewMessage) error {
 	bot := m.Client.Me()
 	name := m.Sender.FirstName
+
 	go func() {
-		err := config.SaveUser(m.Sender.ID)
-		if err != nil {
+		if err := config.SaveUser(m.Sender.ID); err != nil {
 			m.Client.Logger.Error("Save user error:", err)
 		}
 	}()
 
-	response := fmt.Sprintf(
-		`👋 Hello <b>%s</b>!
+	response := fmt.Sprintf(`
+👋 Hello <b>%s</b>!
 
-🎧 <b>Welcome to %s</b> — your personal music downloader bot!  
-Supports: <b>Spotify</b>, <b>YouTube</b>, <b>Apple Music</b>, and <b>SoundCloud</b>.
+🎧 <b>Welcome to %s</b> — your personal music downloader bot!
 
-🔍 <b>To search:</b> Send a song name or a link.
-💬 <b>Inline Search:</b> <code>@%s lofi mood</code>
-📥 <b>Group Command:</b> <code>/spotify &lt;url&gt;</code>
+Supports: <b>Spotify</b>, <b>YouTube</b>, <b>Apple Music</b>, <b>SoundCloud</b>
 
-Enjoy endless tunes! 🚀`,
-		name,
-		bot.FirstName,
-		bot.Username,
-	)
+<b>🔍 How to Use:</b>
+• Send a song name or link directly  
+• Inline: <code>@%s lofi mood</code>  
+• Group: <code>/spotify &lt;url&gt;</code>
+
+<b>🤖 Want Your Own Bot?</b>  
+Clone it in 10 seconds using this guide:  
+<a href="https://t.me/FallenProjects/131">Clone Your Bot via Token</a>
+
+<b>🛑 Stop Your Clone:</b>  
+Send <code>/stop</code> in <b>your cloned bot's private chat</b>
+
+<b>🔗 Links:</b>  
+🌟 <a href="https://t.me/FallenProjects">Support Channel</a>  
+🛠️ <a href="https://github.com/AshokShau/SpTubeBot">Source Code</a>
+
+Enjoy endless tunes! 🚀`, name, bot.FirstName, bot.Username)
 
 	keyboard := telegram.NewKeyboard().
-		AddRow(telegram.Button.URL("💫 Fᴀʟʟᴇɴ Pʀᴏᴊᴇᴄᴛꜱ", "https://t.me/FallenProjects"))
+		AddRow(telegram.Button.URL("💫 Fᴀʟʟᴇɴ Pʀᴏᴊᴇᴄᴛꜱ", "https://t.me/FallenProjects")).
+		AddRow(telegram.Button.URL("📌 Clone Guide", "https://t.me/FallenProjects/131"))
 
 	_, err := m.Reply(response, telegram.SendOptions{
 		ReplyMarkup: keyboard.Build(),
