@@ -16,8 +16,8 @@ import (
 const (
 	apiTimeout      = 60 * time.Second
 	defaultLimit    = "10"
-	maxQueryLength  = 50
-	maxURLLength    = 500
+	maxQueryLength  = 500
+	maxURLLength    = 5000
 	headerAccept    = "Accept"
 	headerAPIKey    = "X-API-Key"
 	mimeApplication = "application/json"

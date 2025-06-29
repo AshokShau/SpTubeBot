@@ -2,6 +2,7 @@ package src
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -67,6 +68,7 @@ func spotifySearchSong(m *telegram.NewMessage) error {
 			_, _ = m.Reply("😢 Song not found.")
 			return nil
 		}
+
 		for _, track := range song.Results {
 			data := fmt.Sprintf("spot_%s_0", utils.EncodeURL(track.URL))
 			kb.AddRow(telegram.Button.Data(fmt.Sprintf("%s - %s", track.Name, track.Artist), data))
@@ -149,6 +151,9 @@ func spotifyHandlerCallback(cb *telegram.CallbackQuery) error {
 			}
 		}
 	}
+	defer func() {
+		_ = os.Remove(audioFile)
+	}()
 
 	progress := telegram.NewProgressManager(4)
 	progress.Edit(telegram.MediaDownloadProgress(msg, progress))
@@ -227,6 +232,10 @@ func spotifyInlineHandler(update telegram.Update, client *telegram.Client) error
 		_, _ = client.EditMessage(&send.MsgID, 0, "⚠️ Failed to download the song.")
 		return nil
 	}
+
+	defer func() {
+		_ = os.Remove(audioFile)
+	}()
 
 	progress := telegram.NewProgressManager(3).SetInlineMessage(client, &send.MsgID)
 	caption := buildTrackCaption(track)
