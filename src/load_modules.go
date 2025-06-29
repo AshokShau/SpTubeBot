@@ -69,7 +69,7 @@ func filterClone(m *telegram.NewMessage) bool {
 
 // InitFunc initializes the bot and registers all command, message, and callback handlers
 func InitFunc(c *telegram.Client) {
-	// _, _ = c.UpdatesGetState()
+	_, _ = c.UpdatesGetState()
 	// Public commands
 	c.On("command:start", startHandle)
 	c.On("command:ping", pingHandle)

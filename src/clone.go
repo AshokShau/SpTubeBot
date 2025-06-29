@@ -131,8 +131,7 @@ func stopHandler(m *telegram.NewMessage) error {
 		_, _ = m.Reply("❌ Couldn't remove your token from DB:\n" + err.Error())
 	}
 
-	_ = m.Client.Disconnect()
-	if err := m.Client.Stop(); err != nil {
+	if err := m.Client.Terminate(); err != nil {
 		_, _ = m.Reply("❌ Failed to stop bot:\n" + err.Error())
 	}
 

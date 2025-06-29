@@ -2,7 +2,6 @@ package src
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -13,11 +12,14 @@ import (
 )
 
 // prepareTrackMessageOptions builds SendOptions for sending an audio track.
-func prepareTrackMessageOptions(file any, caption string) telegram.SendOptions {
+func prepareTrackMessageOptions(file any, thumb any, track *utils.TrackInfo, progress *telegram.ProgressManager) telegram.SendOptions {
 	return telegram.SendOptions{
-		Media:    file,
-		Caption:  caption,
-		MimeType: "audio/mpeg",
+		ProgressManager: progress,
+		Media:           file,
+		Thumb:           thumb,
+		Attributes:      buildAudioAttributes(track),
+		Caption:         buildTrackCaption(track),
+		MimeType:        "audio/mpeg",
 		ReplyMarkup: telegram.NewKeyboard().AddRow(
 			telegram.Button.URL("🎧 Fᴀʟʟᴇɴ Pʀᴏᴊᴇᴄᴛꜱ", "https://t.me/FallenProjects"),
 		).Build(),
@@ -136,11 +138,10 @@ func spotifyHandlerCallback(cb *telegram.CallbackQuery) error {
 	}
 
 	msg, _ = msg.Edit("⏫ Uploading the song...")
-	var file any
 	if matches := regexp.MustCompile(`https?://t\.me/([^/]+)/(\d+)`).FindStringSubmatch(audioFile); len(matches) == 3 {
 		if id, err := strconv.Atoi(matches[2]); err == nil {
 			if ref, err := msg.Client.GetMessageByID(matches[1], int32(id)); err == nil {
-				file, err = ref.Download(&telegram.DownloadOptions{FileName: ref.File.Name})
+				audioFile, err = ref.Download(&telegram.DownloadOptions{FileName: ref.File.Name})
 				if err != nil {
 					_, _ = msg.Edit("⚠️ Failed to download file. " + err.Error())
 					return nil
@@ -151,24 +152,13 @@ func spotifyHandlerCallback(cb *telegram.CallbackQuery) error {
 
 	progress := telegram.NewProgressManager(4)
 	progress.Edit(telegram.MediaDownloadProgress(msg, progress))
-	if file == nil {
-		file, err = cb.Client.GetSendableMedia(audioFile, &telegram.MediaMetadata{
-			ProgressManager: progress,
-			Attributes:      buildAudioAttributes(track),
-			Thumb:           thumb,
-		})
-		if err != nil {
-			cb.Client.Logger.Warn("Failed to prepare media:", err.Error())
-			_, _ = msg.Edit("❌ Failed to send the track.")
-			return nil
-		}
-	}
 
-	if _, err = msg.Edit(buildTrackCaption(track), prepareTrackMessageOptions(file, buildTrackCaption(track))); err != nil {
+	time.Sleep(300 * time.Millisecond)
+	opts := prepareTrackMessageOptions(audioFile, thumb, track, progress)
+	if _, err = msg.Edit(buildTrackCaption(track), opts); err != nil {
 		cb.Client.Logger.Warn("Send failed:", err.Error())
 		_, _ = msg.Edit("❌ Failed to send the track.")
 	}
-	_ = os.Remove(audioFile)
 	return nil
 }
 
@@ -239,21 +229,9 @@ func spotifyInlineHandler(update telegram.Update, client *telegram.Client) error
 	}
 
 	progress := telegram.NewProgressManager(3).SetInlineMessage(client, &send.MsgID)
-	file, err := client.GetSendableMedia(audioFile, &telegram.MediaMetadata{
-		Thumb:           thumb,
-		Attributes:      buildAudioAttributes(track),
-		ProgressManager: progress,
-		Inline:          true,
-	})
-
-	if err != nil {
-		client.Logger.Warn("Sendable media error:", err)
-		_, _ = client.EditMessage(&send.MsgID, 0, "❌ Failed to send the song.")
-		return nil
-	}
-
 	caption := buildTrackCaption(track)
-	options := prepareTrackMessageOptions(file, caption)
+	options := prepareTrackMessageOptions(audioFile, thumb, track, progress)
+
 	time.Sleep(300 * time.Millisecond)
 	err = clientSendEditedMessage(client, &send.MsgID, caption, &options)
 	if err != nil && strings.Contains(err.Error(), "MEDIA_EMPTY") {
