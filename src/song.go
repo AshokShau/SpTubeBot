@@ -277,3 +277,72 @@ func spotifyHandlerCallback(cb *telegram.CallbackQuery) error {
 	cb.Client.Logger.Debug("Successfully sent track.")
 	return nil
 }
+
+func zipHandle(m *telegram.NewMessage) error {
+	query := strings.TrimSpace(m.Args())
+	if query == "" {
+		_, err := m.Reply("🎵 Please send me a song name, artist, or Spotify URL.\nExample: /playlist Daft Punk Get Lucky")
+		return err
+	}
+
+	api := utils.NewApiData(query)
+	var tracks *utils.PlatformTracks
+	var err error
+	msg, err := m.Reply("🔍 Searching for tracks...")
+	if err != nil {
+		return fmt.Errorf("failed to send initial message: %w", err)
+	}
+
+	if !api.IsValid(query) {
+		tracks, err = api.Search("5")
+	} else {
+		tracks, err = api.GetInfo()
+	}
+
+	if err != nil {
+		_, _ = msg.Edit("⚠️ Couldn't find any tracks. Please try a different search.")
+		return fmt.Errorf("getInfo failed: %w", err)
+	}
+
+	_, _ = msg.Edit(fmt.Sprintf("⏳ Found %d tracks. Preparing download...", len(tracks.Results)))
+
+	// Create ZIP file
+	zipResult, err := utils.ZipTracks(tracks)
+	if err != nil {
+		_, _ = msg.Edit("❌ Failed to create zip file. Please try again later.")
+		return fmt.Errorf("zip creation failed: %w", err)
+	}
+
+	if !fileExists(zipResult.ZipPath) {
+		_, _ = msg.Edit("⚠️ Download completed but zip file is missing. Please report this issue.")
+		return fmt.Errorf("zip file missing at %s", zipResult.ZipPath)
+	}
+
+	// Prepare final message
+	successMsg := fmt.Sprintf("✅ Success! Downloaded %d/%d tracks.\n📦 Zip file ready:",
+		zipResult.SuccessCount,
+		len(tracks.Results))
+
+	if len(zipResult.Errors) > 0 {
+		successMsg += fmt.Sprintf("\n\n⚠️ %d tracks failed to download.", len(zipResult.Errors))
+	}
+
+	_, err = msg.Edit(
+		successMsg,
+		telegram.SendOptions{
+			Media:    zipResult.ZipPath,
+			MimeType: "application/zip",
+			Caption:  fmt.Sprintf("🎵 %d tracks", zipResult.SuccessCount),
+		},
+	)
+
+	defer func() {
+		_ = os.Remove(zipResult.ZipPath)
+	}()
+
+	if err != nil {
+		return fmt.Errorf("failed to send zip file: %w", err)
+	}
+
+	return nil
+}
