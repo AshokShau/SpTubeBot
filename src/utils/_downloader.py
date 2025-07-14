@@ -3,7 +3,7 @@ import binascii
 import logging
 import re
 import shutil
-import subprocess
+
 import time
 import uuid
 import zipfile
@@ -65,6 +65,7 @@ class Download:
             # Process based on platform
             if self.track.platform in ["youtube", "soundcloud"]:
                 return await self.process_direct_dl()
+
             return await self.process_standard()
 
         except Exception as e:
@@ -98,8 +99,6 @@ class Download:
                 await self.download_and_decrypt(encrypted_file, decrypted_file)
                 await self.rebuild_ogg(decrypted_file)
                 result = await self.vorb_repair_ogg(decrypted_file)
-
-                # Ensure final file has correct permissions
                 output_file.chmod(DEFAULT_FILE_PERM)
                 return result
             finally:
@@ -113,25 +112,20 @@ class Download:
         session = await get_client_session()
 
         try:
-            # Stream download directly to file
             async with session.get(self.track.cdnurl) as resp:
                 if resp.status != 200:
                     raise Exception(f"Unexpected status code: {resp.status}")
 
-                # Write encrypted file in chunks
                 with encrypted_path.open('wb') as f:
                     async for chunk in resp.content.iter_chunked(CHUNK_SIZE):
                         f.write(chunk)
 
-            # Decrypt in parallel thread (CPU-bound operation)
             decrypted_data = await asyncio.get_event_loop().run_in_executor(
                 _executor,
                 self._decrypt_file,
                 encrypted_path,
                 self.track.key
             )
-
-            # Write decrypted data
             decrypted_path.write_bytes(decrypted_data)
         except Exception as e:
             encrypted_path.unlink(missing_ok=True)
@@ -140,7 +134,6 @@ class Download:
 
     @staticmethod
     def _decrypt_file(file_path: Path, hex_key: str) -> bytes:
-        """Synchronous decrypt function for executor."""
         try:
             key = binascii.unhexlify(hex_key)
             audio_aes_iv = binascii.unhexlify("72e067fbddcbcf77ebe8bc643f630d93")
@@ -178,9 +171,8 @@ class Download:
         output_file = self.downloads_dir / f"{self.track.tc}.ogg"
 
         try:
-            # Run ffmpeg and vorbiscomment in one pipeline if possible
             await self._run_ffmpeg(input_file, output_file)
-            await self._add_vorbis_comments(output_file, cover_path)
+            await self._add_vorbis_comments(output_file)
         except Exception as e:
             output_file.unlink(missing_ok=True)
             raise e
@@ -199,8 +191,8 @@ class Download:
 
         try:
             proc = await asyncio.create_subprocess_exec(*cmd,
-                                                        stdout=subprocess.PIPE,
-                                                        stderr=subprocess.PIPE
+                                                        stdout=asyncio.subprocess.PIPE,
+                                                        stderr=asyncio.subprocess.PIPE,
                                                         )
             _, stderr = await proc.communicate()
 
@@ -209,7 +201,7 @@ class Download:
         except FileNotFoundError:
             raise Exception("ffmpeg not found in PATH")
 
-    async def _add_vorbis_comments(self, output_file: Path, cover_path: Optional[str]) -> None:
+    async def _add_vorbis_comments(self, output_file: Path) -> None:
         """Optimized vorbis comment addition."""
         if not shutil.which('vorbiscomment'):
             logger.warning("vorbiscomment not found - skipping metadata")
@@ -226,23 +218,15 @@ class Download:
             f"PUBLISHER={self.track.artist}",
             f"DURATION={self.track.duration}",
         ]
-
-        if cover_path:
-            try:
-                with open(cover_path, 'rb') as f:
-                    cover_data = f.read()
-                metadata.insert(0, f"METADATA_BLOCK_PICTURE={await self._create_vorbis_image_block(cover_data)}")
-            except Exception as e:
-                logger.warning(f"Failed to process cover: {e}")
-
+        metadata.insert(0, f"METADATA_BLOCK_PICTURE={await self._create_vorbis_image_block()}")
         tmp_file = self.downloads_dir / f"{uuid.uuid4()}.txt"
         try:
             tmp_file.write_text("\n".join(metadata))
 
             cmd = ['vorbiscomment', '-a', str(output_file), '-c', str(tmp_file)]
             proc = await asyncio.create_subprocess_exec(*cmd,
-                                                        stdout=subprocess.PIPE,
-                                                        stderr=subprocess.PIPE
+                                                        stdout=asyncio.subprocess.PIPE,
+                                                        stderr=asyncio.subprocess.PIPE,
                                                         )
             _, stderr = await proc.communicate()
 
@@ -251,28 +235,37 @@ class Download:
         finally:
             tmp_file.unlink(missing_ok=True)
 
-    async def _create_vorbis_image_block(self, image_bytes: bytes) -> str:
-        """Optimized cover processing."""
-        tmp_cover = self.downloads_dir / f"{uuid.uuid4()}.jpg"
-        tmp_base64 = self.downloads_dir / f"{uuid.uuid4()}.b64"
+    async def _create_vorbis_image_block(self) -> str:
+        path = await self.save_cover(self.track.cover)
+        if not path:
+            return ""
+
+        image_path = Path(path)
+        base64_path = image_path.with_suffix(".base64")
 
         try:
-            tmp_cover.write_bytes(image_bytes)
+            process = await asyncio.create_subprocess_exec(
+                "./cover_gen.sh", str(image_path),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await process.communicate()
 
-            cmd = ["./cover_gen.sh", str(tmp_cover)]
-            proc = await asyncio.create_subprocess_exec(*cmd,
-                                                        stdout=subprocess.PIPE,
-                                                        stderr=subprocess.PIPE
-                                                        )
-            _, stderr = await proc.communicate()
+            if process.returncode != 0:
+                logging.error(f"cover_gen.sh failed with code {process.returncode}\nOutput: {stderr.decode().strip()}")
+                return ""
 
-            if proc.returncode != 0:
-                raise Exception(f"cover_gen.sh failed: {stderr.decode()}")
+            if not base64_path.exists():
+                logging.error(f"{base64_path} not generated by cover_gen.sh")
+                return ""
 
-            return tmp_base64.read_text()
+            return base64_path.read_text()
+
+        except Exception as e:
+            logging.error(f"Error generating vorbis block: {e}")
+            return ""
         finally:
-            tmp_cover.unlink(missing_ok=True)
-            tmp_base64.unlink(missing_ok=True)
+            base64_path.unlink(missing_ok=True)
 
     async def download_file(self, url: str, file_path: str = "") -> str:
         """Optimized file download with proper error handling."""
