@@ -126,16 +126,21 @@ class Download:
         # Write decrypted file
         decrypted_path.write_bytes(decrypted_data)
 
-    async def get_cover(self, cover_url: str) -> Optional[bytes]:
+    async def get_cover(self) -> Optional[bytes]:
+        cover_url = self.track.cover
         if not cover_url:
             return None
 
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
+        timeout = aiohttp.ClientTimeout(total=30)
+        headers = {
+            "User-Agent": "Mozilla/5.0",
+        }
+
+        async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
             async with session.get(cover_url) as resp:
                 if resp.status != 200:
                     raise Exception(f"Unexpected status code: {resp.status}")
-
-                cover_data = await resp.content.read(MAX_COVER_SIZE)
+                cover_data = await resp.read()
                 return cover_data
 
     async def decrypt_audio_file(self, file_path: Path, hex_key: str) -> bytes:
@@ -330,12 +335,14 @@ class Download:
         if not cover_url:
             return None
 
-        cover_data = await self.get_cover(cover_url)
-        if not cover_data:
-            return None
-
         downloads_dir = Path(config.DOWNLOAD_PATH)
         cover_path = downloads_dir / f"{self.track.tc}_cover.jpg"
+        if cover_path.exists():
+            return str(cover_path)
+
+        cover_data = await self.get_cover()
+        if not cover_data:
+            return None
 
         try:
             cover_path.write_bytes(cover_data)
