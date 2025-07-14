@@ -27,7 +27,7 @@ const (
 	defaultDownloadDirPerm = 0755
 	defaultFilePerm        = 0644
 	maxCoverSize           = 10 << 20 // 10MB
-	downloadTimeout        = 5 * time.Minute
+	downloadTimeout        = 4 * time.Minute
 )
 
 var (
@@ -51,10 +51,10 @@ func (d *Download) Process() (string, []byte, error) {
 	switch {
 	case d.Track.CdnURL == "":
 		return "", nil, ErrMissingCDNURL
-	case d.Track.Platform == "youtube" || d.Track.Platform == "soundcloud":
-		return d.processDirectDL()
+	case d.Track.Platform == "spotify":
+		return d.processSpotify()
 	default:
-		return d.processStandard()
+		return d.processDirectDL()
 	}
 }
 
@@ -76,7 +76,7 @@ func (d *Download) processDirectDL() (string, []byte, error) {
 	return filePath, coverData, err
 }
 
-func (d *Download) processStandard() (string, []byte, error) {
+func (d *Download) processSpotify() (string, []byte, error) {
 	track := d.Track
 	downloadsDir := config.DownloadPath
 
@@ -100,8 +100,8 @@ func (d *Download) processStandard() (string, []byte, error) {
 	decryptedFile := filepath.Join(downloadsDir, fmt.Sprintf("%s_decrypted.ogg", track.TC))
 
 	defer func() {
-		os.Remove(encryptedFile)
-		os.Remove(decryptedFile)
+		_ = os.Remove(encryptedFile)
+		_ = os.Remove(decryptedFile)
 	}()
 
 	if err := d.downloadAndDecrypt(encryptedFile, decryptedFile); err != nil {
@@ -121,7 +121,9 @@ func (d *Download) downloadAndDecrypt(encryptedPath, decryptedPath string) error
 	if err != nil {
 		return fmt.Errorf("failed to download file: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
@@ -158,7 +160,9 @@ func getCover(coverURL string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to download cover: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
@@ -211,7 +215,9 @@ func rebuildOGG(filename string) error {
 	if err != nil {
 		return fmt.Errorf("error opening file: %w", err)
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		_ = file.Close()
+	}(file)
 
 	writeAt := func(offset int64, data string) error {
 		_, err := file.WriteAt([]byte(data), offset)
@@ -289,7 +295,9 @@ func addVorbisComments(outputFile string, track TrackInfo, coverData []byte) err
 	if err := os.WriteFile(tmpFile, []byte(metadata), defaultFilePerm); err != nil {
 		return fmt.Errorf("failed to write metadata file: %w", err)
 	}
-	defer os.Remove(tmpFile)
+	defer func(name string) {
+		_ = os.Remove(name)
+	}(tmpFile)
 
 	cmd := exec.Command("vorbiscomment", "-a", outputFile, "-c", tmpFile)
 	if output, err := cmd.CombinedOutput(); err != nil {
@@ -303,8 +311,8 @@ func createVorbisImageBlock(imageBytes []byte) string {
 	tmpCover := "cover.jpg"
 	tmpBase64 := "cover.base64"
 	defer func() {
-		os.Remove(tmpCover)
-		os.Remove(tmpBase64)
+		_ = os.Remove(tmpCover)
+		_ = os.Remove(tmpBase64)
 	}()
 
 	if err := os.WriteFile(tmpCover, imageBytes, defaultFilePerm); err != nil {
@@ -347,7 +355,9 @@ func downloadFile(ctx context.Context, urlStr, filePath string, overwrite bool) 
 	if err != nil {
 		return "", fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
@@ -409,10 +419,12 @@ func writeToFile(path string, src io.Reader) error {
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		_ = file.Close()
+	}(file)
 
-	if _, err := io.Copy(file, src); err != nil {
-		os.Remove(path)
+	if _, err = io.Copy(file, src); err != nil {
+		_ = os.Remove(path)
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 

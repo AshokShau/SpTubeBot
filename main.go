@@ -7,7 +7,6 @@ import (
 	"os"
 	"songBot/src"
 	"songBot/src/config"
-	"strings"
 	"time"
 
 	tg "github.com/amarnathcjd/gogram/telegram"
@@ -19,57 +18,30 @@ var (
 )
 
 func main() {
-	if config.Token == "" || config.ApiKey == "" || config.ApiUrl == "" || config.MongoUrl == "" {
-		log.Fatal("Missing environment variables. Please set TOKEN, API_KEY, API_URL and MONGO_URL.")
+	if config.Token == "" || config.ApiKey == "" || config.ApiUrl == "" {
+		log.Fatal("Missing environment variables. Please set TOKEN, API_KEY and API_URL")
 	}
 
 	if err := os.Mkdir("downloads", os.ModePerm); err != nil && !os.IsExist(err) {
 		log.Fatalf("Failed to create downloads directory: %v", err)
 	}
 
-	Tokens, err := config.GetAllBotTokens()
-	if err == nil && len(Tokens) > 0 {
-		log.Printf("Starting %d clients.", len(Tokens))
-		for i := 1; i <= len(Tokens); i++ {
-			go buildAndStart(i, Tokens[i-1])
-		}
-	} else if err != nil {
-		log.Printf("Failed to retrieve bot tokens: %v", err)
-	} else {
-		log.Println("No bot tokens found.")
-	}
-
-	// Start main client
 	client, ok := buildAndStart(0, config.Token)
 	if !ok {
 		log.Fatalf("[Client] Startup failed")
 	}
-
 	go autoRestart(24 * time.Hour)
 	client.Idle()
 	log.Printf("[Client 0] Bot stopped.")
-
-	files, err := os.ReadDir(".")
-	if err == nil {
-		for _, file := range files {
-			if strings.HasSuffix(file.Name(), ".db") {
-				if err = os.Remove(file.Name()); err != nil {
-					log.Printf("Failed to remove file %s: %v", file.Name(), err)
-				}
-			}
-		}
-	} else {
-		log.Printf("Failed to read current directory: %v", err)
-	}
 }
 
 func buildAndStart(index int, token string) (*tg.Client, bool) {
 	clientConfig := tg.ClientConfig{
-		AppID:         8,
-		AppHash:       "7245de8e747a0d6fbe11f7cc14fcc0bb",
-		MemorySession: true,
-		FloodHandler:  handleFlood,
-		SessionName:   fmt.Sprintf("bot_%d", index),
+		AppID:   8,
+		AppHash: "7245de8e747a0d6fbe11f7cc14fcc0bb",
+		//MemorySession: true,
+		FloodHandler: handleFlood,
+		SessionName:  fmt.Sprintf("bot_%d", index),
 	}
 
 	client, err := tg.NewClient(clientConfig)
@@ -85,7 +57,6 @@ func buildAndStart(index int, token string) (*tg.Client, bool) {
 
 	if err = client.LoginBot(token); err != nil {
 		log.Printf("[Client %d] ❌ Bot login failed: %v", index, err)
-		_ = config.RemoveBotToken(token)
 		return nil, false
 	}
 

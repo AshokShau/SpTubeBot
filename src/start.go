@@ -2,7 +2,6 @@ package src
 
 import (
 	"fmt"
-	"songBot/src/config"
 	"time"
 
 	"github.com/amarnathcjd/gogram/telegram"
@@ -12,13 +11,6 @@ import (
 func startHandle(m *telegram.NewMessage) error {
 	bot := m.Client.Me()
 	name := m.Sender.FirstName
-
-	go func() {
-		if err := config.SaveUser(m.Sender.ID); err != nil {
-			m.Client.Logger.Error("Save user error:", err)
-		}
-	}()
-
 	response := fmt.Sprintf(`
 👋 Hello <b>%s</b>!
 
