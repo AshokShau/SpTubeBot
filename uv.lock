@@ -146,18 +146,6 @@ wheels = [
 ]
 
 [[package]]
-name = "deprecation"
-version = "2.1.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "packaging" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/5a/d3/8ae2869247df154b64c1884d7346d412fed0c49df84db635aab2d1c40e62/deprecation-2.1.0.tar.gz", hash = "sha256:72b3bde64e5d778694b0cf68178aed03d15e15477116add3fb773e581f9518ff", size = 173788, upload-time = "2020-04-20T14:23:38.738Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/02/c3/253a89ee03fc9b9682f1541728eb66db7db22148cd94f89ab22528cd1e1b/deprecation-2.1.0-py2.py3-none-any.whl", hash = "sha256:a10811591210e1fb0e768a8c25517cabeabcba6f0bf96564f8ff45189f90b14a", size = 11178, upload-time = "2020-04-20T14:23:36.581Z" },
-]
-
-[[package]]
 name = "exceptiongroup"
 version = "1.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -264,33 +252,12 @@ wheels = [
 ]
 
 [[package]]
-name = "ntgcalls"
-version = "2.0.5"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/58/99/6c6781f4e58237cf6159d0b0755bda7cf95233d7771b908703439356039f/ntgcalls-2.0.5.tar.gz", hash = "sha256:82b5b270c7e9fcbb139f709e1125d487e54ccd2f337f50f56f38fdc964ed8dec", size = 9045640, upload-time = "2025-06-27T09:23:19.111Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ba/c7/529de46854fa06ca6bf9d64f5e4431fff48b33e39a190e4da03e6e4c82d4/ntgcalls-2.0.5-cp313-cp313-macosx_12_0_arm64.whl", hash = "sha256:e41f16f587d5bccf5d30eee8b259445b82a44f2d2a26a18f6399188e9431670c", size = 8819466, upload-time = "2025-06-27T09:22:54.297Z" },
-    { url = "https://files.pythonhosted.org/packages/75/5d/92d0540d23b72ba451cfc9059705ffdbc2cb035fba69bc2b9cff10bc3824/ntgcalls-2.0.5-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0182fbc4b55d0f9f4c7f7ae66e3b6d26a639bb02d69fa54d236838e293242adb", size = 37534906, upload-time = "2025-06-27T09:22:57.444Z" },
-    { url = "https://files.pythonhosted.org/packages/d0/39/ba72bb58d522ee43474dbec81c0b43c2997f4b90333d26c3bdae64427662/ntgcalls-2.0.5-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:065318c81d42d92d22fd63ec3003a0dc66eca1b348a3362887bb9295e4f4662d", size = 34202150, upload-time = "2025-06-27T09:23:01.047Z" },
-    { url = "https://files.pythonhosted.org/packages/6f/37/3f4fb1e879656b7dccf25c13245e30cec71dde6ff965088f7b7519900b71/ntgcalls-2.0.5-cp313-cp313-win_amd64.whl", hash = "sha256:5e18259a7de64496a8aaea99da9b0e1630b313660f14cdf402b2da347481705b", size = 10384883, upload-time = "2025-06-27T09:23:04.389Z" },
-]
-
-[[package]]
 name = "orderly-set"
 version = "5.5.0"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/4a/88/39c83c35d5e97cc203e9e77a4f93bf87ec89cf6a22ac4818fdcc65d66584/orderly_set-5.5.0.tar.gz", hash = "sha256:e87185c8e4d8afa64e7f8160ee2c542a475b738bc891dc3f58102e654125e6ce", size = 27414, upload-time = "2025-07-10T20:10:55.885Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/12/27/fb8d7338b4d551900fa3e580acbe7a0cf655d940e164cb5c00ec31961094/orderly_set-5.5.0-py3-none-any.whl", hash = "sha256:46f0b801948e98f427b412fcabb831677194c05c3b699b80de260374baa0b1e7", size = 13068, upload-time = "2025-07-10T20:10:54.377Z" },
-]
-
-[[package]]
-name = "packaging"
-version = "25.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/a1/d4/1fc4078c65507b51b96ca8f8c3ba19e6a61c8253c72794544580a7b6c24d/packaging-25.0.tar.gz", hash = "sha256:d443872c98d677bf60f6a1f2f8c1cb748e8fe762d2bf9d3148b5599295b0fc4f", size = 165727, upload-time = "2025-04-19T11:48:59.673Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/20/12/38679034af332785aac8774540895e234f4d07f7545804097de4b666afd8/packaging-25.0-py3-none-any.whl", hash = "sha256:29572ef2b1f17581046b3a2227d5c611fb25ec70ca1ba8554b24b0e69331a484", size = 66469, upload-time = "2025-04-19T11:48:57.875Z" },
 ]
 
 [[package]]
@@ -341,19 +308,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/9a/4c/b0fe775a2bdd01e176b14b574be679d84fc83958335790f7c9a686c1f468/propcache-0.3.2-cp313-cp313t-win32.whl", hash = "sha256:f86e5d7cd03afb3a1db8e9f9f6eff15794e79e791350ac48a8c924e6f439f394", size = 41175, upload-time = "2025-06-09T22:55:38.436Z" },
     { url = "https://files.pythonhosted.org/packages/a4/ff/47f08595e3d9b5e149c150f88d9714574f1a7cbd89fe2817158a952674bf/propcache-0.3.2-cp313-cp313t-win_amd64.whl", hash = "sha256:9704bedf6e7cbe3c65eca4379a9b53ee6a83749f047808cbb5044d40d7d72198", size = 44857, upload-time = "2025-06-09T22:55:39.687Z" },
     { url = "https://files.pythonhosted.org/packages/cc/35/cc0aaecf278bb4575b8555f2b137de5ab821595ddae9da9d3cd1da4072c7/propcache-0.3.2-py3-none-any.whl", hash = "sha256:98f1ec44fb675f5052cccc8e609c46ed23a35a1cfd18545ad4e29002d858a43f", size = 12663, upload-time = "2025-06-09T22:56:04.484Z" },
-]
-
-[[package]]
-name = "py-tgcalls"
-version = "2.2.5"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "aiohttp" },
-    { name = "deprecation" },
-    { name = "ntgcalls" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f8/6e/cae33d03a6a91546accc2b64e870ae079d915c7a87989e1db33534ff4539/py_tgcalls-2.2.5-py3-none-any.whl", hash = "sha256:6bd1328f13a9609f29984c6524bf7327c23fe33ce540da0384b5f0f0433845aa", size = 84035, upload-time = "2025-06-29T09:21:00.94Z" },
 ]
 
 [[package]]
@@ -469,7 +423,6 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
-    { name = "py-tgcalls" },
     { name = "pycryptodome" },
     { name = "pydantic" },
     { name = "pytdbot" },
@@ -482,7 +435,6 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.12.14" },
-    { name = "py-tgcalls", specifier = "~=2.2.5" },
     { name = "pycryptodome", specifier = ">=3.23.0" },
     { name = "pydantic", specifier = ">=2.11.7" },
     { name = "pytdbot", specifier = ">=0.9.5" },
