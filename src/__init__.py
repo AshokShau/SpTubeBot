@@ -4,6 +4,7 @@ from datetime import datetime
 from pytdbot import Client, types
 
 from src import config
+from src.utils import get_client_session, close_client_session
 
 logging.basicConfig(
     level=logging.INFO,
@@ -35,14 +36,14 @@ class Telegram(Client):
         )
 
     async def start(self) -> None:
+        await get_client_session()
         await super().start()
         self.logger.info(f"Bot started in {datetime.now() - StartTime} seconds.")
         self.logger.info(f"Version: {__version__}")
 
     async def stop(self) -> None:
-        await super().stop()
-        from src.utils import close_client_session
         await close_client_session()
+        await super().stop()
 
 
 client: Telegram = Telegram()

@@ -4,20 +4,44 @@ from typing import Dict, Union, Optional
 
 import aiohttp
 from pytdbot import types
-
+from concurrent.futures import ThreadPoolExecutor
 from src import config
 from src.utils._dataclass import PlatformTracks, TrackInfo, MusicTrack
 
 # Constants
-API_TIMEOUT = aiohttp.ClientTimeout(total=60, connect=10)
+DOWNLOAD_TIMEOUT = aiohttp.ClientTimeout(total=300, connect=30)
 DEFAULT_LIMIT = "10"
 MAX_QUERY_LENGTH = 500
 MAX_URL_LENGTH = 5000
 HEADER_ACCEPT = "Accept"
 HEADER_API_KEY = "X-API-Key"
 MIME_APPLICATION = "application/json"
-
+MAX_CONCURRENT_DOWNLOADS = 5
 _client_session: Optional[aiohttp.ClientSession] = None
+_executor = ThreadPoolExecutor(max_workers=4)
+
+
+async def get_client_session() -> aiohttp.ClientSession:
+    global _client_session
+    if _client_session is None or _client_session.closed:
+        connector = aiohttp.TCPConnector(
+            limit_per_host=MAX_CONCURRENT_DOWNLOADS,
+            force_close=False,
+            enable_cleanup_closed=True,
+            use_dns_cache=True
+        )
+        _client_session = aiohttp.ClientSession(
+            connector=connector,
+            timeout=DOWNLOAD_TIMEOUT,
+            trust_env=True
+        )
+    return _client_session
+
+async def close_client_session():
+    """Close the global client session when done."""
+    global _client_session
+    if _client_session is not None and not _client_session.closed:
+        await _client_session.close()
 
 URL_PATTERNS = {
     "spotify": re.compile(
@@ -28,24 +52,6 @@ URL_PATTERNS = {
     "apple_music": re.compile(
         r'^(https?://)?([a-z0-9-]+\.)?apple\.com/[a-z]{2}/(album|playlist|song)/[^/]+/(pl\.[a-zA-Z0-9]+|\d+)(\?i=\d+)?(\?.*)?$')
 }
-
-
-async def get_client_session() -> aiohttp.ClientSession:
-    """Get or create a reusable client session."""
-    global _client_session
-    if _client_session is None or _client_session.closed:
-        connector = aiohttp.TCPConnector(
-            limit=100,
-            force_close=False,
-            enable_cleanup_closed=True,
-            use_dns_cache=True
-        )
-        _client_session = aiohttp.ClientSession(
-            connector=connector,
-            timeout=API_TIMEOUT,
-            trust_env=True
-        )
-    return _client_session
 
 
 class ApiData:
@@ -162,9 +168,3 @@ class ApiData:
     def _sanitize_input(input_str: str) -> str:
         return input_str[:MAX_QUERY_LENGTH] if len(input_str) > MAX_QUERY_LENGTH else input_str
 
-
-async def close_client_session():
-    """Close the global client session when done."""
-    global _client_session
-    if _client_session is not None and not _client_session.closed:
-        await _client_session.close()
