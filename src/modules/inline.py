@@ -1,7 +1,7 @@
 from pytdbot import Client, types
 
 from src import config
-from src.utils import ApiData, Download
+from src.utils import ApiData, Download, upload_cache
 
 
 @Client.on_updateNewInlineQuery()
@@ -115,6 +115,20 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
     audio_file, cover = result
     caption = f"<b>{track.name}</b>\n<i>{track.artist}</i>"
     parsed_caption = await c.parseTextEntities(caption, types.TextParseModeHTML())
+    cached_file_id = upload_cache.get(track.id)
+    if cached_file_id:
+        await c.editInlineMessageMedia(
+            inline_message_id=inline_message_id,
+            input_message_content=types.InputMessageAudio(
+                audio=types.InputFileRemote(cached_file_id),
+                album_cover_thumbnail=types.InputThumbnail(types.InputFileLocal(cover)) if cover else None,
+                title=track.name,
+                performer=track.artist,
+                duration=track.duration,
+                caption=parsed_caption,
+            ),
+        )
+        return
 
     upload = await c.sendAudio(
         chat_id=config.LOGGER_ID,
@@ -135,6 +149,7 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
         return
 
     file_id = upload.content.audio.audio.remote.id
+    upload_cache.set(track.id, file_id)
     send_audio = await c.editInlineMessageMedia(
         inline_message_id=inline_message_id,
         input_message_content=types.InputMessageAudio(
