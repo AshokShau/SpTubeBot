@@ -119,7 +119,7 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
     upload = await c.sendAudio(
         chat_id=config.LOGGER_ID,
         audio=types.InputFileLocal(audio_file),
-        # album_cover_thumbnail=types.InputThumbnail(types.InputFileLocal(cover)) if cover else None,
+        album_cover_thumbnail=types.InputThumbnail(types.InputFileLocal(cover)) if cover else None,
         title=track.name,
         performer=track.artist,
         duration=track.duration,
