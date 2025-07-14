@@ -266,11 +266,9 @@ class Download:
         if not url_str:
             raise ValueError("Empty URL provided")
 
-        downloads_dir = Path(config.DOWNLOAD_PATH)
-
         # Determine filename
         if not file_path:
-            file_path = self.determine_filename(url_str, None)  # Simplified
+            file_path = self.determine_filename(url_str, None)
 
         file_path = Path(file_path)
 
@@ -306,7 +304,6 @@ class Download:
         if filename := self.extract_filename(content_disp):
             return str(Path(config.DOWNLOAD_PATH) / self.sanitize_filename(filename))
 
-        # Fall back to URL path
         try:
             from urllib.parse import urlparse
             parsed = urlparse(url_str)
@@ -391,8 +388,12 @@ async def download_playlist_zip(playlist: PlatformTracks) -> Optional[str]:
 
     # Cleanup
     for file in audio_files:
-        # file.unlink(missing_ok=True)
-        file.rmdir()
+        file.unlink(missing_ok=True)
 
-    zip_temp_dir.rmdir()
+    if zip_temp_dir.exists():
+        try:
+            shutil.rmtree(zip_temp_dir)
+        except Exception as e:
+            logger.warning(f"Failed to clean temp directory: {e}")
+
     return str(zip_path)
