@@ -115,7 +115,7 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
     audio_file, cover = result
     caption = f"<b>{track.name}</b>\n<i>{track.artist}</i>"
     parsed_caption = await c.parseTextEntities(caption, types.TextParseModeHTML())
-    cached_file_id = upload_cache.get(track.id)
+    cached_file_id = upload_cache.get(track.tc)
     if cached_file_id:
         await c.editInlineMessageMedia(
             inline_message_id=inline_message_id,
@@ -149,7 +149,7 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
         return
 
     file_id = upload.content.audio.audio.remote.id
-    upload_cache.set(track.id, file_id)
+    upload_cache.set(track.tc, file_id)
     send_audio = await c.editInlineMessageMedia(
         inline_message_id=inline_message_id,
         input_message_content=types.InputMessageAudio(

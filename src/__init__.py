@@ -41,6 +41,8 @@ class Telegram(Client):
 
     async def stop(self) -> None:
         await super().stop()
+        from src.utils import close_client_session
+        await close_client_session()
 
 
 client: Telegram = Telegram()
