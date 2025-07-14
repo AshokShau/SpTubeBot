@@ -1,4 +1,4 @@
 /.idea
 .env
 __pycache__/
-
+database/
