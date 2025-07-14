@@ -1,34 +1,24 @@
-FROM golang:1.24.0-alpine3.20 AS builder
+FROM python:3.13-slim
 
 WORKDIR /app
 
-RUN apk add --no-cache --virtual .build-deps \
-    git \
-    gcc \
-    musl-dev
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ffmpeg \
+        bash \
+        vorbis-tools \
+        file \
+        coreutils \
+        gawk \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY go.mod go.sum ./
-RUN go mod download
+RUN pip install --no-cache-dir uv
 
 COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-w -s" -o songBot
 
-RUN apk del .build-deps
+RUN chmod +x cover_gen.sh
 
-FROM alpine:3.20
+RUN uv pip install -e . --system
 
-WORKDIR /app
-
-RUN apk add --no-cache \
-    ffmpeg \
-    bash \
-    vorbis-tools \
-    file \
-    coreutils \
-    gawk
-
-
-COPY --from=builder /app/songBot /app/cover_gen.sh ./
-RUN chmod +x /app/songBot /app/cover_gen.sh
-
-ENTRYPOINT ["/app/songBot"]
+CMD ["start"]

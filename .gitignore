@@ -1,6 +1,4 @@
 /.idea
 .env
-*.dat
-/downloads
-*.db
-*.webm
+__pycache__/
+

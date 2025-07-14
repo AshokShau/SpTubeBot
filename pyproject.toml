@@ -1,0 +1,31 @@
+[project]
+name = "sptubebot"
+version = "0.1.0"
+description = "A high-performance Telegram bot for downloading songs from Spotify, SoundCloud, Apple Music and YouTube in premium quality."
+requires-python = ">=3.13"
+dependencies = [
+     "aiohttp>=3.12.14",
+     "py-tgcalls~=2.2.5",
+     "pycryptodome>=3.23.0",
+     "pydantic>=2.11.7",
+     "pytdbot>=0.9.5",
+     "python-dotenv>=1.1.1",
+     "requests~=2.32.4",
+     "tdjson~=1.8.51",
+     "ujson~=5.10.0",
+]
+
+[project.license]
+file = "LICENSE"
+
+
+[project.scripts]
+start = "src.__main__:main"
+
+[tool.uv]
+package = true
+
+[tool.setuptools]
+packages = [
+    "src",
+]

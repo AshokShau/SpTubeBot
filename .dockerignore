@@ -1,5 +1,5 @@
 **
-!go.*
-!*.go
+!*.py
 !src
+!pyproject.toml
 !cover_gen.sh
