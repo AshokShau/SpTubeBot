@@ -22,15 +22,19 @@ Supports: <b>Spotify</b>, <b>YouTube</b>, <b>Apple Music</b>, <b>SoundCloud</b>
 • Send a song name or link directly  
 • Inline: <code>@%s lofi mood</code>  
 • Group: <code>/spotify &lt;url&gt;</code>
+• Playlist: <code>/playlist &lt;url&gt;</code>
 
-<b>🔗 Links:</b>  
-🌟 <a href="https://t.me/FallenProjects">Support Channel</a>  
-🛠️ <a href="https://github.com/AshokShau/SpTubeBot">Source Code</a>
+<b>⚙️ Features:</b>
+• Download songs from YouTube, Spotify, Apple Music, and SoundCloud  
+• No ads  
+• High quality audio  
+• Seamless integration with Telegram groups
 
 Enjoy endless tunes! 🚀`, name, bot.FirstName, bot.Username)
 
 	keyboard := telegram.NewKeyboard().
-		AddRow(telegram.Button.URL("💫 Fᴀʟʟᴇɴ Pʀᴏᴊᴇᴄᴛꜱ", "https://t.me/FallenProjects"))
+		AddRow(telegram.Button.URL("💫 Fᴀʟʟᴇɴ Pʀᴏᴊᴇᴄᴛꜱ", "https://t.me/FallenProjects")).
+		AddRow(telegram.Button.URL("🛠️ Sᴏᴜʀᴄᴇ Cᴏᴅᴇ", "https://github.com/AshokShau/SpTubeBot"))
 	_, err := m.Reply(response, telegram.SendOptions{
 		ReplyMarkup: keyboard.Build(),
 	})
