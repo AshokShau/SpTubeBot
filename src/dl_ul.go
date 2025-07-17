@@ -12,7 +12,7 @@ import (
 func uploadHandle(m *telegram.NewMessage) error {
 	filename := m.Args()
 	if filename == "" {
-		m.Reply("No filename provided")
+		_, _ = m.Reply("No filename provided")
 		return nil
 	}
 

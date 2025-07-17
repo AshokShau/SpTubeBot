@@ -17,14 +17,14 @@ func privacyHandle(m *telegram.NewMessage) error {
 	privacyText := fmt.Sprintf(`
 <b>🔐 Privacy Policy for %s</b>
 
-<b>Last updated:</b> 28 June 2025
+<b>Last updated:</b> 17 July 2025
 
 Thank you for using <b>@%s</b>. Your privacy is important to us. This policy explains how your data is handled.
 
 <b>📌 1. What We Store</b>
-- We store your <b>user ID</b> only for internal bot features.
-- If you use <code>/clone</code>, we also save the <b>bot token</b> you provide to make the feature work.
-- No usernames, messages, files, or queries are stored.
+- No usernames, messages, files, user id, chat id or queries are stored.
+- in another words, we do not collect any data from you.
+- We do not use any tracking or analytics services.
 
 <b>⚙️ 2. How the Bot Works</b>
 @%s helps you download songs from platforms like:
@@ -37,7 +37,8 @@ This bot interacts with external services. Please refer to their respective priv
 - Spotify
 - Apple Music
 - SoundCloud
-Note: We <b>do not control</b> how these platforms handle your data.
+
+No data is collected from these services.
 
 <b>🔍 4. Open Source & Transparency</b>
 You can review the full source code and deployment instructions here:

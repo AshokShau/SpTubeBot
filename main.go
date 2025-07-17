@@ -30,16 +30,16 @@ func main() {
 	if !ok {
 		log.Fatalf("[Client] Startup failed")
 	}
+
 	go autoRestart(24 * time.Hour)
 	client.Idle()
-	log.Printf("[Client 0] Bot stopped.")
+	log.Printf("[Client] Bot stopped.")
 }
 
 func buildAndStart(index int, token string) (*tg.Client, bool) {
 	clientConfig := tg.ClientConfig{
-		AppID:   8,
-		AppHash: "7245de8e747a0d6fbe11f7cc14fcc0bb",
-		//MemorySession: true,
+		AppID:        8,
+		AppHash:      "7245de8e747a0d6fbe11f7cc14fcc0bb",
 		FloodHandler: handleFlood,
 		SessionName:  fmt.Sprintf("bot_%d", index),
 	}
