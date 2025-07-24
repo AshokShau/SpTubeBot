@@ -7,6 +7,7 @@ import (
 	"os"
 	"songBot/src"
 	"songBot/src/config"
+	"strconv"
 	"time"
 
 	tg "github.com/amarnathcjd/gogram/telegram"
@@ -18,7 +19,7 @@ var (
 )
 
 func main() {
-	if config.Token == "" || config.ApiKey == "" || config.ApiUrl == "" {
+	if config.Token == "" || config.ApiKey == "" || config.ApiUrl == "" || config.ApiHash == "" || config.ApiId == "" {
 		log.Fatal("Missing environment variables. Please set TOKEN, API_KEY and API_URL")
 	}
 
@@ -37,9 +38,15 @@ func main() {
 }
 
 func buildAndStart(index int, token string) (*tg.Client, bool) {
+	apiId, err := strconv.Atoi(config.ApiId)
+	if err != nil {
+		log.Printf("[Client %d] ❌ Failed to parse API ID: %v", index, err)
+		return nil, false
+	}
+
 	clientConfig := tg.ClientConfig{
-		AppID:        8,
-		AppHash:      "7245de8e747a0d6fbe11f7cc14fcc0bb",
+		AppID:        int32(apiId),
+		AppHash:      config.ApiHash,
 		FloodHandler: handleFlood,
 		SessionName:  fmt.Sprintf("bot_%d", index),
 	}

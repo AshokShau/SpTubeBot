@@ -7,6 +7,8 @@ import (
 )
 
 var (
+	ApiId        = os.Getenv("API_ID")
+	ApiHash      = os.Getenv("API_HASH")
 	Token        = os.Getenv("TOKEN")
 	ApiKey       = os.Getenv("API_KEY")
 	ApiUrl       = os.Getenv("API_URL")
