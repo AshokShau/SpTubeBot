@@ -1,5 +1,5 @@
-github.com/amarnathcjd/gogram v1.6.1-0.20250629075350-592c6e5e50c2 h1:8W39JEUqyjY8FEt2JlltBawm3J4yKpyWzKPoNw0JsIM=
-github.com/amarnathcjd/gogram v1.6.1-0.20250629075350-592c6e5e50c2/go.mod h1:6XqpNfIQ9yJviJMyw825yx1QsfPwhv34/JbSdEuk7A0=
+github.com/amarnathcjd/gogram v1.6.2 h1:B6iV4HzdfXSWXG/+t3DGy0mpew+/ewuUhAuqjDk1WlU=
+github.com/amarnathcjd/gogram v1.6.2/go.mod h1:vZURSYiNYNPnZ70msOgmRmcVuku1P6ol2zIAHMM1CFY=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/joho/godotenv v1.5.1 h1:7eLL/+HRGLY0ldzfGMeQkb7vMd0as4CfYvUVzLqw0N0=

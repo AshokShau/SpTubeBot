@@ -52,7 +52,7 @@ A high-performance Telegram bot for downloading songs from Spotify, YouTube, and
 ### Prerequisites
 - Telegram Bot Token ([@BotFather](https://t.me/BotFather))
 - API Key ([@FallenApiBot](https://t.me/FallenApiBot))
-- Go 1.21+ or Docker
+- Go 1.24+ or Docker
 
 ### Basic Installation
 ```bash
@@ -80,11 +80,13 @@ docker run -d --name songbot --env-file .env songbot
 | `/ping`            | Check bot status         | `/ping`                                       |
 | `/help`            | Show help message        | `/help`                                       |
 
-## 🌐 Supported URL Formats
+## 🌐 Supported URL Formats (Just send the URL)
 - Spotify: `open.spotify.com/track/...`
 - YouTube: `youtube.com/watch?v=...`
 - Apple Music: `music.apple.com/...`
 - SoundCloud: `soundcloud.com/...`
+- Instagram: `instagram.com/p/...` (Reels, Stories, and Posts)
+- Pinterest: `pinterest.com/...` (Boards and Pins)
 
 ## 🆘 Support & Community
 - [Report Issues](https://github.com/AshokShau/SpTubeBot/issues)

@@ -47,6 +47,24 @@ func saveSnap(m *telegram.NewMessage) error {
 	}
 
 	var sendErr error
+	// Handle images
+	switch len(data.Image) {
+	case 0:
+		// No image, skip
+	case 1:
+		_, sendErr = m.ReplyMedia(data.Image[0], telegram.MediaOptions{
+			FileName: "image.jpg",
+			MimeType: "image/jpeg",
+		})
+	default:
+		var images []string
+		for _, img := range data.Image {
+			images = append(images, img)
+		}
+		_, sendErr = m.ReplyAlbum(images, &telegram.MediaOptions{
+			MimeType: "image/jpeg",
+		})
+	}
 
 	// Handle videos
 	switch len(data.Video) {
@@ -65,28 +83,6 @@ func saveSnap(m *telegram.NewMessage) error {
 		}
 		_, sendErr = m.ReplyAlbum(videos, &telegram.MediaOptions{
 			MimeType: "video/mp4",
-		})
-	}
-
-	// Handle images
-	switch len(data.Image) {
-	case 0:
-		if len(data.Video) == 0 {
-			m.Client.Log.Warn("No media found in snap response")
-			return nil
-		}
-	case 1:
-		_, sendErr = m.ReplyMedia(data.Image[0], telegram.MediaOptions{
-			FileName: "image.jpg",
-			MimeType: "image/jpeg",
-		})
-	default:
-		var images []string
-		for _, img := range data.Image {
-			images = append(images, img)
-		}
-		_, sendErr = m.ReplyAlbum(images, &telegram.MediaOptions{
-			MimeType: "image/jpeg",
 		})
 	}
 
