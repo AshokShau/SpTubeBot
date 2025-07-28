@@ -21,12 +21,13 @@ type APIResponse struct {
 }
 
 func saveSnap(m *telegram.NewMessage) error {
-	args := m.Text()
-	reqUrl := fmt.Sprintf("https://info.fallenapi.fun/snap?url=%s", args)
-	m.Client.Log.Info("[FETCHING] " + reqUrl)
+	url := m.Text()
+	apiURL := fmt.Sprintf("https://info.fallenapi.fun/snap?url=%s", url)
+	m.Client.Log.Info("[FETCHING] " + apiURL)
 
-	resp, err := http.Get(reqUrl)
+	resp, err := http.Get(apiURL)
 	if err != nil {
+		m.Client.Log.Error("HTTP error: " + err.Error())
 		return fmt.Errorf("failed to fetch snap: %v", err)
 	}
 	defer resp.Body.Close()
@@ -40,45 +41,54 @@ func saveSnap(m *telegram.NewMessage) error {
 		return err
 	}
 
-	var result APIResponse
-	if err := json.Unmarshal(body, &result); err != nil {
+	var data APIResponse
+	if err := json.Unmarshal(body, &data); err != nil {
 		return err
 	}
 
-	// If videos exist
-	if len(result.Video) > 0 {
-		var album []string
-		for _, v := range result.Video {
-			album = append(album, v.Video)
+	var sendErr error
+
+	// Handle videos
+	switch len(data.Video) {
+	case 0:
+		// No video, skip
+	case 1:
+		v := data.Video[0]
+		_, sendErr = m.ReplyMedia(v.Video, telegram.MediaOptions{
+			FileName: "video.mp4",
+			MimeType: "video/mp4",
+		})
+	default:
+		var videos []string
+		for _, v := range data.Video {
+			videos = append(videos, v.Video)
 		}
-		_, err := m.ReplyAlbum(album, &telegram.MediaOptions{MimeType: "video/mp4"})
-		if err != nil {
-			return err
-		}
+		_, sendErr = m.ReplyAlbum(videos, &telegram.MediaOptions{
+			MimeType: "video/mp4",
+		})
 	}
 
-	// If images exist
-	switch len(result.Image) {
+	// Handle images
+	switch len(data.Image) {
 	case 0:
-		if len(result.Video) == 0 {
-			m.Client.Log.Warn("No image or video found")
+		if len(data.Video) == 0 {
+			m.Client.Log.Warn("No media found in snap response")
 			return nil
 		}
 	case 1:
-		_, err := m.ReplyMedia(result.Image[0], telegram.MediaOptions{FileName: "image.jpg", MimeType: "image/jpeg"})
-		if err != nil {
-			return err
-		}
+		_, sendErr = m.ReplyMedia(data.Image[0], telegram.MediaOptions{
+			FileName: "image.jpg",
+			MimeType: "image/jpeg",
+		})
 	default:
-		var album []string
-		for _, img := range result.Image {
-			album = append(album, img)
+		var images []string
+		for _, img := range data.Image {
+			images = append(images, img)
 		}
-		_, err := m.ReplyAlbum(album)
-		if err != nil {
-			return err
-		}
+		_, sendErr = m.ReplyAlbum(images, &telegram.MediaOptions{
+			MimeType: "image/jpeg",
+		})
 	}
 
-	return nil
+	return sendErr
 }
