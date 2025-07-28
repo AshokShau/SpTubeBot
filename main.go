@@ -20,7 +20,7 @@ var (
 
 func main() {
 	if config.Token == "" || config.ApiKey == "" || config.ApiUrl == "" || config.ApiHash == "" || config.ApiId == "" {
-		log.Fatal("Missing environment variables. Please set TOKEN, API_KEY and API_URL")
+		log.Fatal("Missing environment variables. Please set TOKEN, API_KEY, API_HASH, API_ID and API_URL")
 	}
 
 	if err := os.Mkdir("downloads", os.ModePerm); err != nil && !os.IsExist(err) {
@@ -32,7 +32,6 @@ func main() {
 		log.Fatalf("[Client] Startup failed")
 	}
 
-	go autoRestart(24 * time.Hour)
 	client.Idle()
 	log.Printf("[Client] Bot stopped.")
 }
@@ -77,34 +76,6 @@ func buildAndStart(index int, token string) (*tg.Client, bool) {
 	client.Logger.Info(fmt.Sprintf("✅ Client %d: @%s (Startup in %s)", index, me.Username, uptime))
 	src.InitFunc(client)
 	return client, true
-}
-
-func autoRestart(interval time.Duration) {
-	if config.CoolifyToken == "" {
-		log.Println("Coolify token not set; autoRestart disabled.")
-		return
-	}
-
-	go func() {
-		for {
-			time.Sleep(interval)
-			req, err := http.NewRequest("GET",
-				"https://app.ashok.sbs/api/v1/applications/lkkgog40occ0c8soo8gwcokk/restart", nil)
-			if err != nil {
-				log.Printf("[Restart] ❌ Request error: %v", err)
-				continue
-			}
-			req.Header.Set("Authorization", "Bearer "+config.CoolifyToken)
-
-			resp, err := restartClient.Do(req)
-			if err != nil {
-				log.Printf("[Restart] ❌ Request failed: %v", err)
-				continue
-			}
-			_ = resp.Body.Close()
-			log.Printf("[Restart] ✅ Status: %s", resp.Status)
-		}
-	}()
 }
 
 func handleFlood(err error) bool {

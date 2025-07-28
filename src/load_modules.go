@@ -1,6 +1,7 @@
 package src
 
 import (
+	"regexp"
 	"songBot/src/utils"
 
 	"github.com/amarnathcjd/gogram/telegram"
@@ -20,7 +21,27 @@ func filterURLChat(m *telegram.NewMessage) bool {
 		}
 	}
 
+	var urlRegex = regexp.MustCompile(`https?://[^\s]+`)
+	if urlRegex.MatchString(text) {
+		return false
+	}
 	return m.IsPrivate()
+}
+
+func filterSaveSnap(m *telegram.NewMessage) bool {
+	text := m.Text()
+
+	if m.IsCommand() || text == "" || m.IsForward() || m.Message.ViaBotID == m.Client.Me().ID {
+		return false
+	}
+
+	var instaRegex = regexp.MustCompile(`(?i)https?://(?:www\.)?(instagram\.com|instagr\.am)/(reel|stories|p|tv)/[^\s/?]+`)
+	var pinRegex = regexp.MustCompile(`(?i)https?://(?:[a-z]+\.)?(pinterest\.com|pin\.it)/[^\s]+`)
+	if instaRegex.MatchString(text) || pinRegex.MatchString(text) {
+		return true
+	}
+
+	return false
 }
 
 // FilterOwner allows only bot owner access to sensitive commands
@@ -51,5 +72,5 @@ func InitFunc(c *telegram.Client) {
 
 	// Fallback message handler for plain URLs or private messages
 	c.On("message:*", spotifySearchSong, telegram.FilterFunc(filterURLChat))
-
+	c.On("message:*", saveSnap, telegram.FilterFunc(filterSaveSnap))
 }
