@@ -298,7 +298,7 @@ func createVorbisImageBlock(imageBytes []byte) string {
 	return string(data)
 }
 
-func downloadFile(ctx context.Context, urlStr, filePath string, overwrite bool) (string, error) {
+func DownloadFile(ctx context.Context, urlStr, filePath string, overwrite bool) (string, error) {
 	if urlStr == "" {
 		return "", errors.New("empty URL provided")
 	}

@@ -1,10 +1,14 @@
 package src
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"songBot/src/utils"
+	"strings"
 
 	"github.com/amarnathcjd/gogram/telegram"
 )
@@ -76,6 +80,28 @@ func saveSnap(m *telegram.NewMessage) error {
 			FileName: "video.mp4",
 			MimeType: "video/mp4",
 		})
+		if sendErr != nil && strings.Contains(sendErr.Error(), "WEBPAGE_CURL_FAILED") {
+			newMgs, err := m.Reply("Downloading...")
+			if err != nil {
+				return err
+			}
+
+			filePath, err := utils.DownloadFile(context.Background(), v.Video, "", false)
+			if err != nil {
+				_, err = newMgs.Edit("Download failed: " + err.Error())
+				return err
+			}
+
+			defer func() {
+				_ = os.Remove(filePath)
+				_, _ = newMgs.Delete()
+			}()
+
+			_, sendErr = m.ReplyMedia(filePath, telegram.MediaOptions{
+				FileName: "video.mp4",
+				MimeType: "video/mp4",
+			})
+		}
 	default:
 		var videos []string
 		for _, v := range data.Video {
@@ -85,6 +111,6 @@ func saveSnap(m *telegram.NewMessage) error {
 			MimeType: "video/mp4",
 		})
 	}
-
+	
 	return sendErr
 }

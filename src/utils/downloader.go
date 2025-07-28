@@ -56,7 +56,7 @@ func (d *Download) processDirectDL() (string, []byte, error) {
 		return track.CdnURL, coverData, nil
 	}
 
-	filePath, err := downloadFile(context.Background(), track.CdnURL, "", false)
+	filePath, err := DownloadFile(context.Background(), track.CdnURL, "", false)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to download file: %w", err)
 	}
