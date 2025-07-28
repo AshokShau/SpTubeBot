@@ -37,12 +37,15 @@ func filterSaveSnap(m *telegram.NewMessage) bool {
 
 	var instaRegex = regexp.MustCompile(`(?i)https?://(?:www\.)?(instagram\.com|instagr\.am)/(reel|stories|p|tv)/[^\s/?]+`)
 	var pinRegex = regexp.MustCompile(`(?i)https?://(?:[a-z]+\.)?(pinterest\.com|pin\.it)/[^\s]+`)
-	if instaRegex.MatchString(text) || pinRegex.MatchString(text) {
+	var fbWatchRegex = regexp.MustCompile(`(?i)https?://(?:www\.)?fb\.watch/[^\s/?]+`)
+
+	if instaRegex.MatchString(text) || pinRegex.MatchString(text) || fbWatchRegex.MatchString(text) {
 		return true
 	}
 
 	return false
 }
+
 
 // FilterOwner allows only bot owner access to sensitive commands
 func FilterOwner(m *telegram.NewMessage) bool {
