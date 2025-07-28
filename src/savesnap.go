@@ -22,7 +22,7 @@ type APIResponse struct {
 
 func saveSnap(m *telegram.NewMessage) error {
 	args := m.Text()
-	reqUrl := fmt.Sprintf("http://172.17.0.1:3010/snap?url=%s", args)
+	reqUrl := fmt.Sprintf("https://info.fallenapi.fun/snap?url=%s", args)
 	m.Client.Log.Info("[FETCHING] " + reqUrl)
 
 	resp, err := http.Get(reqUrl)
