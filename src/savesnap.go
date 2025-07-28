@@ -4,13 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/amarnathcjd/gogram/telegram"
 	"io"
 	"net/http"
 	"os"
 	"songBot/src/utils"
 	"strings"
-
-	"github.com/amarnathcjd/gogram/telegram"
 )
 
 type APIVideo struct {
@@ -81,26 +80,29 @@ func saveSnap(m *telegram.NewMessage) error {
 			MimeType: "video/mp4",
 		})
 		if sendErr != nil && strings.Contains(sendErr.Error(), "WEBPAGE_CURL_FAILED") {
-			newMgs, err := m.Reply("Downloading...")
+			msg, err := m.Reply("Downloading...")
 			if err != nil {
 				return err
 			}
 
 			filePath, err := utils.DownloadFile(context.Background(), v.Video, "", false)
 			if err != nil {
-				_, err = newMgs.Edit("Download failed: " + err.Error())
+				_, err = msg.Edit("Download failed: " + err.Error())
 				return err
 			}
-
+			progress := telegram.NewProgressManager(4)
+			progress.Edit(telegram.MediaDownloadProgress(msg, progress))
 			defer func() {
 				_ = os.Remove(filePath)
-				_, _ = newMgs.Delete()
 			}()
 
-			_, sendErr = m.ReplyMedia(filePath, telegram.MediaOptions{
-				FileName: "video.mp4",
-				MimeType: "video/mp4",
-			})
+			opts := telegram.SendOptions{
+				ProgressManager: progress,
+				Media:           filePath,
+				Caption:         "Done!",
+				MimeType:        "",
+			}
+			_, sendErr = msg.Edit("Done!", opts)
 		}
 	default:
 		var videos []string
