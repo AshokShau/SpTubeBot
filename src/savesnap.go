@@ -111,6 +111,6 @@ func saveSnap(m *telegram.NewMessage) error {
 			MimeType: "video/mp4",
 		})
 	}
-	
+
 	return sendErr
 }
