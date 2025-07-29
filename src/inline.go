@@ -90,13 +90,20 @@ func spotifyInlineHandler(update telegram.Update, client *telegram.Client) error
 	progress := telegram.NewProgressManager(3).SetInlineMessage(client, &send.MsgID)
 	caption := buildTrackCaption(track)
 	options := prepareTrackMessageOptions(audioFile, thumb, track, progress)
-
 	time.Sleep(500 * time.Millisecond)
 	err = clientSendEditedMessage(client, &send.MsgID, caption, &options)
 	if err != nil && strings.Contains(err.Error(), "MEDIA_EMPTY") {
 		client.Logger.Warn("Retrying due to MEDIA_EMPTY...")
 		time.Sleep(1 * time.Second)
 		err = clientSendEditedMessage(client, &send.MsgID, caption, &options)
+	}
+
+	if err != nil {
+		if wait := telegram.GetFloodWait(err); wait > 0 {
+			client.Logger.Warn("Flood wait:", wait)
+			time.Sleep(time.Duration(wait) * time.Second)
+			err = clientSendEditedMessage(client, &send.MsgID, caption, &options)
+		}
 	}
 
 	if err != nil {

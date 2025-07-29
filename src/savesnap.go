@@ -7,9 +7,12 @@ import (
 	"github.com/amarnathcjd/gogram/telegram"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"songBot/src/config"
 	"songBot/src/utils"
 	"strings"
+	"time"
 )
 
 type APIVideo struct {
@@ -24,14 +27,19 @@ type APIResponse struct {
 }
 
 func saveSnap(m *telegram.NewMessage) error {
-	url := m.Text()
-	apiURL := fmt.Sprintf("https://info.fallenapi.fun/snap?url=%s", url)
-	m.Client.Log.Info("[FETCHING] " + apiURL)
-
-	resp, err := http.Get(apiURL)
+	rawURL := m.Text()
+	endpoint := fmt.Sprintf("%s/snap?url=%s", config.ApiUrl, url.QueryEscape(rawURL))
+	client := &http.Client{Timeout: 10 * time.Second}
+	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
-		m.Client.Log.Error("HTTP error: " + err.Error())
-		return fmt.Errorf("failed to fetch snap: %v", err)
+		return fmt.Errorf("creating request failed: %v", err)
+	}
+
+	req.Header.Set("X-API-Key", config.ApiKey)
+	req.Header.Set("Accept", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("HTTP request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -60,11 +68,7 @@ func saveSnap(m *telegram.NewMessage) error {
 			MimeType: "image/jpeg",
 		})
 	default:
-		var images []string
-		for _, img := range data.Image {
-			images = append(images, img)
-		}
-		_, sendErr = m.ReplyAlbum(images, &telegram.MediaOptions{
+		_, sendErr = m.ReplyAlbum(data.Image, &telegram.MediaOptions{
 			MimeType: "image/jpeg",
 		})
 	}
