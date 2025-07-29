@@ -3,6 +3,7 @@ package src
 import (
 	"fmt"
 	"github.com/amarnathcjd/gogram/telegram"
+	"os"
 	"songBot/src/utils"
 	"strings"
 	"time"
@@ -81,16 +82,24 @@ func spotifyInlineHandler(update telegram.Update, client *telegram.Client) error
 		return nil
 	}
 
-	if !fileExists(audioFile) {
-		client.Logger.Warn("[Inline] Audio file does not exist:", audioFile)
-		_, _ = client.EditMessage(&send.MsgID, 0, "❌ Audio file missing.")
+	file, err := os.Open(audioFile)
+	if err != nil {
+		client.Logger.Warn("[Inline] Failed to open audio file:", audioFile)
+		_, _ = client.EditMessage(&send.MsgID, 0, "❌ Failed to open audio file.")
+		return nil
+	}
+	defer file.Close()
+
+	info, _ := file.Stat()
+	if info.Size() == 0 {
+		client.Logger.Warn("[Inline] File is empty:", audioFile)
+		_, _ = client.EditMessage(&send.MsgID, 0, "❌ Audio file is empty.")
 		return nil
 	}
 
-	progress := telegram.NewProgressManager(3).SetInlineMessage(client, &send.MsgID)
+	progress := telegram.NewProgressManager(2).SetInlineMessage(client, &send.MsgID)
 	caption := buildTrackCaption(track)
 	options := prepareTrackMessageOptions(audioFile, thumb, track, progress)
-	time.Sleep(500 * time.Millisecond)
 	err = clientSendEditedMessage(client, &send.MsgID, caption, &options)
 	if err != nil && strings.Contains(err.Error(), "MEDIA_EMPTY") {
 		client.Logger.Warn("Retrying due to MEDIA_EMPTY...")

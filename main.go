@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"songBot/src"
 	"songBot/src/config"
@@ -14,72 +13,93 @@ import (
 )
 
 var (
-	startTimeStamp = time.Now().Unix()
-	restartClient  = &http.Client{Timeout: 10 * time.Second}
+	startTimeStamp = time.Now()
 )
 
 func main() {
-	if config.Token == "" || config.ApiKey == "" || config.ApiUrl == "" || config.ApiHash == "" || config.ApiId == "" {
-		log.Fatal("Missing environment variables. Please set TOKEN, API_KEY, API_HASH, API_ID and API_URL")
-	}
+	checkEnvVars(
+		map[string]string{
+			"TOKEN":    config.Token,
+			"API_KEY":  config.ApiKey,
+			"API_HASH": config.ApiHash,
+			"API_ID":   config.ApiId,
+			"API_URL":  config.ApiUrl,
+		},
+	)
 
-	if err := os.Mkdir("downloads", os.ModePerm); err != nil && !os.IsExist(err) {
-		log.Fatalf("Failed to create downloads directory: %v", err)
-	}
+	createDir("downloads")
 
 	client, ok := buildAndStart(0, config.Token)
 	if !ok {
-		log.Fatalf("[Client] Startup failed")
+		log.Fatal("❌ [Startup] Bot client initialization failed")
 	}
 
 	client.Idle()
-	log.Printf("[Client] Bot stopped.")
+	log.Println("🛑 [Shutdown] Bot stopped.")
 }
 
+// checkEnvVars validates required environment variables
+func checkEnvVars(vars map[string]string) {
+	for k, v := range vars {
+		if v == "" {
+			log.Fatalf("❌ Missing required environment variable: %s", k)
+		}
+	}
+}
+
+// createDir ensures the directory exists or creates it
+func createDir(dir string) {
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		log.Fatalf("❌ Failed to create directory %s: %v", dir, err)
+	}
+}
+
+// buildAndStart initializes and logs into the bot client
 func buildAndStart(index int, token string) (*tg.Client, bool) {
 	apiId, err := strconv.Atoi(config.ApiId)
 	if err != nil {
-		log.Printf("[Client %d] ❌ Failed to parse API ID: %v", index, err)
+		log.Printf("[Client %d] ❌ Invalid API_ID: %v", index, err)
 		return nil, false
 	}
 
-	clientConfig := tg.ClientConfig{
-		AppID:        int32(apiId),
-		AppHash:      config.ApiHash,
-		FloodHandler: handleFlood,
-		SessionName:  fmt.Sprintf("bot_%d", index),
-	}
-
-	client, err := tg.NewClient(clientConfig)
+	client, err := tg.NewClient(tg.ClientConfig{
+		AppID:   int32(apiId),
+		AppHash: config.ApiHash,
+		//FloodHandler: handleFlood,
+		SessionName: fmt.Sprintf("bot_%d", index),
+	})
 	if err != nil {
-		log.Printf("[Client %d] ❌ Failed to create client: %v", index, err)
+		log.Printf("[Client %d] ❌ Client creation failed: %v", index, err)
 		return nil, false
 	}
 
-	if _, err = client.Conn(); err != nil {
+	if _, err := client.Conn(); err != nil {
 		log.Printf("[Client %d] ❌ Connection error: %v", index, err)
 		return nil, false
 	}
 
-	if err = client.LoginBot(token); err != nil {
+	if err := client.LoginBot(token); err != nil {
 		log.Printf("[Client %d] ❌ Bot login failed: %v", index, err)
 		return nil, false
 	}
 
 	me, err := client.GetMe()
 	if err != nil {
-		log.Printf("[Client %d] ❌ Failed to get bot info: %v", index, err)
+		log.Printf("[Client %d] ❌ Failed to fetch bot info: %v", index, err)
 		return nil, false
 	}
 
-	uptime := time.Since(time.Unix(startTimeStamp, 0)).String()
-	client.Logger.Info(fmt.Sprintf("✅ Client %d: @%s (Startup in %s)", index, me.Username, uptime))
+	uptime := time.Since(startTimeStamp).Round(time.Millisecond)
+	log.Printf("✅ [Client %d] Logged in as @%s | Startup time: %s", index, me.Username, uptime)
+
 	src.InitFunc(client)
 	return client, true
 }
 
+// handleFlood delays on flood wait errors
 func handleFlood(err error) bool {
 	if wait := tg.GetFloodWait(err); wait > 0 {
+		log.Printf("⚠️ Flood wait detected: sleeping for %ds", wait)
 		time.Sleep(time.Duration(wait) * time.Second)
 		return true
 	}
