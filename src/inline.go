@@ -100,8 +100,14 @@ func spotifyInlineHandler(update telegram.Update, client *telegram.Client) error
 	progress := telegram.NewProgressManager(2).SetInlineMessage(client, &send.MsgID)
 	caption := buildTrackCaption(track)
 	options := prepareTrackMessageOptions(audioFile, thumb, track, progress)
+
 	err = clientSendEditedMessage(client, &send.MsgID, caption, &options)
 	if err != nil && strings.Contains(err.Error(), "MEDIA_EMPTY") {
+		_, newErr := client.SendMedia(-1002166934878, audioFile, &telegram.MediaOptions{MimeType: "audio/mpeg"})
+		if newErr != nil {
+			client.Logger.Warn("Failed to send audio file:", newErr)
+		}
+
 		client.Logger.Warn("Retrying due to MEDIA_EMPTY...")
 		time.Sleep(1 * time.Second)
 		err = clientSendEditedMessage(client, &send.MsgID, caption, &options)
@@ -119,5 +125,6 @@ func spotifyInlineHandler(update telegram.Update, client *telegram.Client) error
 		client.Logger.Warn("Edit failed:", err)
 		_, _ = client.EditMessage(&send.MsgID, 0, "❌ Failed to send the song."+err.Error())
 	}
+
 	return err
 }
