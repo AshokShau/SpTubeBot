@@ -8,9 +8,22 @@ def batch_chunks(items: List[str], size: int = 10) -> List[List[str]]:
     return [items[i:i + size] for i in range(0, len(items), size)]
 
 
+@Client.on_message(filters=Filter.command("insta"))
+async def insta_cmd(client: Client, message: types.Message) -> None:
+    parts = message.text.split(" ", 1)
+    if len(parts) < 2:
+        await message.reply_text("Please provide a search query.")
+        return None
+
+    query = parts[1]
+    return await process_insta_query(client, message, query)
+
 @Client.on_message(filters=Filter.save_snap())
-async def snap_cmd(client: Client, message: types.Message) -> None:
-    query = message.text
+async def insta_autodetect(c: Client, message: types.Message):
+    return await process_insta_query(c, message, message.text)
+
+
+async def process_insta_query(client: Client, message: types.Message, query: str) -> None:
     api = ApiData(query)
     api_data: Union[APIResponse, types.Error, None] = await api.get_snap()
 
@@ -45,25 +58,28 @@ async def snap_cmd(client: Client, message: types.Message) -> None:
     if not video_urls:
         return
 
+    if len(video_urls) == 1:
+        url = video_urls[0]
+        done = await message.reply_video(video=types.InputFileRemote(url))
+        if isinstance(done, types.Error) and "WEBPAGE_CURL_FAILED" in done.message:
+            dl = Download(None)
+            local_file = await dl.download_file(url, "")
+            await message.reply_video(video=types.InputFileLocal(local_file))
+        return
+
     videos_with_audio = []
     videos_without_audio = []
 
-    # Check audio presence
     for url in video_urls:
         if await has_audio_stream(url):
             videos_with_audio.append(url)
         else:
             videos_without_audio.append(url)
 
-    # Send videos with audio (as InputMessageVideo)
+    # Videos with audio
     for batch in batch_chunks(videos_with_audio, 10):
         if len(batch) == 1:
-            done = await message.reply_video(video=types.InputFileRemote(batch[0]))
-            if isinstance(done, types.Error) and "WEBPAGE_CURL_FAILED" in done.message:
-                dl = Download(None)
-                local_file = await dl.download_file(batch[0], "")
-                await message.reply_video(video=types.InputFileLocal(local_file))
-                return
+            done = await message.reply_animation(animation=types.InputFileRemote(batch[0]))
         else:
             done = await client.sendMessageAlbum(
                 chat_id=message.chat_id,
@@ -77,7 +93,7 @@ async def snap_cmd(client: Client, message: types.Message) -> None:
             await message.reply_text(f"Video Error: {done.message}")
             return
 
-    # Send videos without audio (as InputMessageAnimation)
+    # Videos without audio
     for batch in batch_chunks(videos_without_audio, 10):
         if len(batch) == 1:
             done = await message.reply_animation(animation=types.InputFileRemote(batch[0]))
