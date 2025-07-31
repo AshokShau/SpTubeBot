@@ -2,6 +2,8 @@ package src
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/amarnathcjd/gogram/telegram"
@@ -74,7 +76,11 @@ func saveSnap(m *telegram.NewMessage) error {
 		if sendErr != nil && strings.Contains(sendErr.Error(), "MEDIA_EMPTY") {
 			filePaths := make([]string, 0, len(data.Image))
 			for _, imgUrl := range data.Image {
-				filePath, err := utils.DownloadFile(context.Background(), imgUrl, "", false)
+				randomBytes := make([]byte, 4)
+				_, _ = rand.Read(randomBytes)
+				fileName := hex.EncodeToString(randomBytes) + ".jpg"
+
+				filePath, err := utils.DownloadFile(context.Background(), imgUrl, fileName, true)
 				if err != nil {
 					continue // skip failed downloads
 				}
@@ -84,6 +90,12 @@ func saveSnap(m *telegram.NewMessage) error {
 			if len(filePaths) > 0 {
 				_, sendErr = m.ReplyAlbum(filePaths, &telegram.MediaOptions{MimeType: "image/jpeg"})
 			}
+
+			defer func() {
+				for _, filePath := range filePaths {
+					_ = os.Remove(filePath)
+				}
+			}()
 		}
 	}
 

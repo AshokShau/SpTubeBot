@@ -298,7 +298,7 @@ func createVorbisImageBlock(imageBytes []byte) string {
 	return string(data)
 }
 
-func DownloadFile(ctx context.Context, urlStr, filePath string, overwrite bool) (string, error) {
+func DownloadFile(ctx context.Context, urlStr, fileName string, overwrite bool) (string, error) {
 	if urlStr == "" {
 		return "", errors.New("empty URL provided")
 	}
@@ -327,34 +327,34 @@ func DownloadFile(ctx context.Context, urlStr, filePath string, overwrite bool) 
 	}
 
 	// Determine filename
-	if filePath == "" {
-		filePath = determineFilename(urlStr, resp.Header.Get("Content-Disposition"))
+	if fileName == "" {
+		fileName = determineFilename(urlStr, resp.Header.Get("Content-Disposition"))
 	}
 
 	// Skip if file exists and not overwriting
 	if !overwrite {
-		if _, err := os.Stat(filePath); err == nil {
-			return filePath, nil
+		if _, err := os.Stat(fileName); err == nil {
+			return fileName, nil
 		}
 	}
 
 	// Ensure directory exists
-	if err := os.MkdirAll(filepath.Dir(filePath), defaultDownloadDirPerm); err != nil {
+	if err := os.MkdirAll(filepath.Dir(fileName), defaultDownloadDirPerm); err != nil {
 		return "", fmt.Errorf("failed to create directory: %w", err)
 	}
 
 	// Download to temp file first
-	tempPath := filePath + ".part"
+	tempPath := fileName + ".part"
 	if err := writeToFile(tempPath, resp.Body); err != nil {
 		return "", err
 	}
 
 	// Rename temp file to final name
-	if err := os.Rename(tempPath, filePath); err != nil {
+	if err := os.Rename(tempPath, fileName); err != nil {
 		return "", fmt.Errorf("failed to rename temp file: %w", err)
 	}
 
-	return filePath, nil
+	return fileName, nil
 }
 
 func determineFilename(urlStr, contentDisp string) string {
