@@ -8,22 +8,50 @@ from src.utils import Filter
 
 @Client.on_message(filters=Filter.command(["start", "help"]))
 async def start_cmd(c: Client, message: types.Message):
+    bot_username = c.me.usernames.editable_username
     text = (
         "<b>🎧 Welcome to SpTube Bot</b>\n\n"
-        "This bot lets you <b>search</b>, <b>download</b>, and <b>stream</b> music from platforms like:\n"
-        "• Spotify\n"
-        "• YouTube\n"
-        "• SoundCloud\n"
-        "• Apple Music\n\n"
-        "📥 Try sending a song name, playlist link, or use inline mode:\n"
-        "<code>@SpTubeBot your search here</code>\n\n"
-        "🔗 Source Code: <a href=\"https://github.com/AshokShau/SpTubeBot\">GitHub Repo</a>\n"
-        "📜 /privacy — View Privacy Policy"
+        "Stream, download, and enjoy music from your favorite platforms:\n"
+        "• <b>Spotify</b>\n"
+        "• <b>YouTube</b>\n"
+        "• <b>SoundCloud</b>\n"
+        "• <b>Apple Music</b>\n\n"
+        "<b>🎥 Now also supports media from:</b>\n"
+        "• <b>Instagram</b> (Reels, Posts, Stories)\n"
+        "• <b>Pinterest</b>\n"
+        "• <b>Facebook</b> (Videos)\n\n"
+        "📥 <b>How to use:</b>\n"
+        "• Send a song name, link, or media URL directly.\n"
+        f"• Use inline mode: <code>@{bot_username} your search</code>\n\n"
+        "📜 <b>Privacy Policy:</b> /privacy"
     )
 
-    reply = await message.reply_text(text, parse_mode="html", disable_web_page_preview=True)
+    reply = await message.reply_text(
+        text,
+        parse_mode="html",
+        disable_web_page_preview=True,
+        reply_markup=types.ReplyMarkupInlineKeyboard(
+            [
+                [
+                    types.InlineKeyboardButton(
+                        text="Add me to your group",
+                        type=types.InlineKeyboardButtonTypeUrl(
+                            f"https://t.me/{bot_username}?startgroup=true"
+                        ),
+                    ),
+                    types.InlineKeyboardButton(
+                        text="GitHub",
+                        type=types.InlineKeyboardButtonTypeUrl(
+                            "https://github.com/AshokShau/SpTubeBot"
+                        ),
+                    )
+                ]
+            ]
+        ),
+    )
     if isinstance(reply, types.Error):
         c.logger.warning(f"Error sending start/help message: {reply.message}")
+
 
 
 @Client.on_message(filters=Filter.command("privacy"))
