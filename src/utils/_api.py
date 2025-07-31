@@ -57,7 +57,7 @@ URL_PATTERNS = {
 class ApiData:
     def __init__(self, query: str):
         self.api_url = config.API_URL
-        self.query = self._sanitize_input(query)
+        self.query = self._sanitize_input(query) if query else ""
 
     def is_valid(self) -> bool:
         raw_url = self.query
@@ -75,6 +75,16 @@ class ApiData:
             return False
 
         return any(pattern.search(raw_url) for pattern in URL_PATTERNS.values())
+
+    def is_save_snap_url(self) -> bool:
+        insta_regex = re.compile(r"(?i)https?://(?:www\.)?(instagram\.com|instagr\.am)/(reel|stories|p|tv)/[^\s/?]+")
+        pin_regex = re.compile(r"(?i)https?://(?:[a-z]+\.)?(pinterest\.com|pin\.it)/[^\s]+")
+        fb_watch_regex = re.compile(r"(?i)https?://(?:www\.)?fb\.watch/[^\s/?]+")
+        fb_video_regex = re.compile(r"(?i)https?://(?:www\.)?facebook\.com/.+/videos/\d+")
+        return any(
+            regex.search(self.query)
+            for regex in (insta_regex, pin_regex, fb_watch_regex, fb_video_regex)
+        )
 
     async def get_info(self) -> Union[types.Error, PlatformTracks]:
         if not self.is_valid():
@@ -158,6 +168,9 @@ class ApiData:
             return types.Error(message=f"Unexpected error: {e}")
 
     async def get_snap(self) -> Union[types.Error, APIResponse]:
+        if not self.is_save_snap_url():
+            return types.Error(message="Url is not valid")
+
         endpoint = f"{self.api_url}/snap?url={urllib.parse.quote(self.query)}"
         headers = self._get_headers()
         session = await get_client_session()

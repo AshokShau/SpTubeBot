@@ -77,11 +77,6 @@ class Filter:
 
     @staticmethod
     def save_snap() -> filters.Filter:
-        insta_regex = re.compile(r"(?i)https?://(?:www\.)?(instagram\.com|instagr\.am)/(reel|stories|p|tv)/[^\s/?]+")
-        pin_regex = re.compile(r"(?i)https?://(?:[a-z]+\.)?(pinterest\.com|pin\.it)/[^\s]+")
-        fb_watch_regex = re.compile(r"(?i)https?://(?:www\.)?fb\.watch/[^\s/?]+")
-        fb_video_regex = re.compile(r"(?i)https?://(?:www\.)?facebook\.com/.+/videos/\d+")
-
         async def filter_func(_, event) -> bool:
             text = Filter._extract_text(event)
             if not text:
@@ -92,10 +87,7 @@ class Filter:
             if pattern.match(text.strip()):
                 return False
 
-            return any(
-                regex.search(text)
-                for regex in (insta_regex, pin_regex, fb_watch_regex, fb_video_regex)
-            )
+            return ApiData(text).is_save_snap_url()
 
         return filters.create(filter_func)
 
