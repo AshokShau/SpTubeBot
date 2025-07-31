@@ -71,6 +71,20 @@ func saveSnap(m *telegram.NewMessage) error {
 		_, sendErr = m.ReplyAlbum(data.Image, &telegram.MediaOptions{
 			MimeType: "image/jpeg",
 		})
+		if sendErr != nil && strings.Contains(sendErr.Error(), "MEDIA_EMPTY") {
+			filePaths := make([]string, 0, len(data.Image))
+			for _, imgUrl := range data.Image {
+				filePath, err := utils.DownloadFile(context.Background(), imgUrl, "", false)
+				if err != nil {
+					continue // skip failed downloads
+				}
+				filePaths = append(filePaths, filePath)
+			}
+
+			if len(filePaths) > 0 {
+				_, sendErr = m.ReplyAlbum(filePaths, &telegram.MediaOptions{MimeType: "image/jpeg"})
+			}
+		}
 	}
 
 	// Handle videos
@@ -118,5 +132,8 @@ func saveSnap(m *telegram.NewMessage) error {
 		})
 	}
 
+	if sendErr != nil {
+		_, _ = m.Reply("Error: " + sendErr.Error())
+	}
 	return sendErr
 }
