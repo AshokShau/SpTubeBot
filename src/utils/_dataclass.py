@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional, Union
 
 
 class TrackInfo(BaseModel):
@@ -28,3 +28,11 @@ class MusicTrack(BaseModel):
 
 class PlatformTracks(BaseModel):
     results: List[MusicTrack]
+
+class APIVideo(BaseModel):
+    video: Optional[str] = None
+    thumbnail: Optional[str] = None
+
+class APIResponse(BaseModel):
+    video: List[APIVideo] = []
+    image: Union[List[str], None] = None

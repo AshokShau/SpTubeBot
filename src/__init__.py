@@ -7,7 +7,7 @@ from src import config
 from src.utils import get_client_session, close_client_session
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="[%(asctime)s - %(levelname)s] - %(name)s - %(filename)s:%(lineno)d - %(message)s",
     datefmt="%d-%b-%y %H:%M:%S",
     handlers=[logging.StreamHandler()],

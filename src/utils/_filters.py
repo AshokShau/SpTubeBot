@@ -3,20 +3,12 @@ from typing import Union
 
 from pytdbot import filters, types
 
+from src.utils._api import ApiData
+
 
 class Filter:
     @staticmethod
     def _extract_text(event) -> str | None:
-        """
-        Extract text from an event. If the event is a message, it will get the text from
-        the message. If the event is an update, it will get the text from the message.
-        If the event is a callback query, it will decode the data using UTF-8 and return
-        the result. If it can't extract the text, it will return None.
-
-        :param event: The event to extract the text from.
-        :return: The text extracted from the event, or None if the text couldn't be
-            extracted.
-        """
         if isinstance(event, types.Message) and isinstance(
             event.content, types.MessageText
         ):
@@ -80,5 +72,54 @@ class Filter:
         async def filter_func(_, event) -> bool:
             text = Filter._extract_text(event)
             return bool(compiled.search(text)) if text else False
+
+        return filters.create(filter_func)
+
+    @staticmethod
+    def save_snap() -> filters.Filter:
+        insta_regex = re.compile(r"(?i)https?://(?:www\.)?(instagram\.com|instagr\.am)/(reel|stories|p|tv)/[^\s/?]+")
+        pin_regex = re.compile(r"(?i)https?://(?:[a-z]+\.)?(pinterest\.com|pin\.it)/[^\s]+")
+        fb_watch_regex = re.compile(r"(?i)https?://(?:www\.)?fb\.watch/[^\s/?]+")
+        fb_video_regex = re.compile(r"(?i)https?://(?:www\.)?facebook\.com/.+/videos/\d+")
+
+        async def filter_func(_, event) -> bool:
+            text = Filter._extract_text(event)
+            if not text:
+                return False
+
+            prefixes: str = "/!"
+            pattern = re.compile(rf"^[{re.escape(prefixes)}](\w+)(?:@(\w+))?", re.IGNORECASE)
+            if pattern.match(text.strip()):
+                return False
+
+            return any(
+                regex.search(text)
+                for regex in (insta_regex, pin_regex, fb_watch_regex, fb_video_regex)
+            )
+
+        return filters.create(filter_func)
+
+    @staticmethod
+    def sp_tube() -> filters.Filter:
+        async def filter_func(_, event) -> bool:
+            text = Filter._extract_text(event)
+            if not text:
+                return False
+
+            # Skip command-like messages
+            command_pattern = re.compile(r"^[!/](\w+)(?:@\w+)?", re.IGNORECASE)
+            if command_pattern.match(text.strip()):
+                return False
+
+            chat_id = None
+            if isinstance(event, types.Message):
+                chat_id = event.chat_id
+            elif isinstance(event, types.UpdateNewMessage):
+                chat_id = getattr(event.message, "chat_id", None)
+
+            if not chat_id or chat_id <= 0:
+                return False
+
+            return ApiData(text).is_valid()
 
         return filters.create(filter_func)

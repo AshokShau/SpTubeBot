@@ -25,10 +25,8 @@ DEFAULT_FILE_PERM = 0o644
 MAX_COVER_SIZE = 10 * 1024 * 1024  # 10MB
 CHUNK_SIZE = 64 * 1024  # 64KB chunks for downloads
 
-
 # Configure logging
 logger = logging.getLogger(__name__)
-
 
 
 class MissingKeyError(Exception):
@@ -39,11 +37,8 @@ class InvalidHexKeyError(Exception):
     pass
 
 
-
-
-
 class Download:
-    def __init__(self, track: TrackInfo):
+    def __init__(self, track: Optional[TrackInfo]):
         self.track = track
         self.downloads_dir = Path(config.DOWNLOAD_PATH)
         self.downloads_dir.mkdir(parents=True, exist_ok=True, mode=DEFAULT_DOWNLOAD_DIR_PERM)

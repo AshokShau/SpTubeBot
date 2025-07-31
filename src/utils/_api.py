@@ -6,7 +6,7 @@ import aiohttp
 from pytdbot import types
 from concurrent.futures import ThreadPoolExecutor
 from src import config
-from src.utils._dataclass import PlatformTracks, TrackInfo, MusicTrack
+from src.utils._dataclass import PlatformTracks, TrackInfo, MusicTrack, APIResponse
 
 # Constants
 DOWNLOAD_TIMEOUT = aiohttp.ClientTimeout(total=300, connect=30)
@@ -64,7 +64,7 @@ class ApiData:
         if not raw_url or len(raw_url) > MAX_URL_LENGTH:
             return False
 
-        if not (raw_url.startswith('http://') or raw_url.startswith('https://')):
+        if not re.match("^https?://", raw_url):
             return False
 
         try:
@@ -157,6 +157,29 @@ class ApiData:
         except Exception as e:
             return types.Error(message=f"Unexpected error: {e}")
 
+    async def get_snap(self) -> Union[types.Error, APIResponse]:
+        endpoint = f"{self.api_url}/snap?url={urllib.parse.quote(self.query)}"
+        headers = self._get_headers()
+        session = await get_client_session()
+
+        try:
+            async with session.get(
+                    endpoint,
+                    headers=headers,
+                    raise_for_status=True
+            ) as response:
+                raw_data = await response.json(content_type=None)
+                return APIResponse(**raw_data)
+
+        except aiohttp.ClientResponseError as e:
+            return types.Error(message=f"Request failed with status: {e.status}")
+        except aiohttp.ClientError as e:
+            return types.Error(message=f"HTTP request failed: {e}")
+        except (ValueError, TypeError) as e:
+            return types.Error(message=f"Failed to parse JSON response: {e}")
+        except Exception as e:
+            return types.Error(message=f"Unexpected error: {e}")
+
     @staticmethod
     def _get_headers() -> Dict[str, str]:
         return {
@@ -167,4 +190,3 @@ class ApiData:
     @staticmethod
     def _sanitize_input(input_str: str) -> str:
         return input_str[:MAX_QUERY_LENGTH] if len(input_str) > MAX_QUERY_LENGTH else input_str
-

@@ -1,18 +1,14 @@
+import re
+
 from pytdbot import Client, types
 
 from src.utils import ApiData, shortener, Filter, download_playlist_zip
 
 
-@Client.on_message(filters=Filter.command(["spot", "spotify", "song"]))
-async def spotify_search(_: Client, message: types.Message):
-    parts = message.text.split(" ", 1)
-    if len(parts) < 2:
-        await message.reply_text("Please provide a search query.")
-        return
-
-    query = parts[1]
+async def process_spotify_query(message: types.Message, query: str):
     api = ApiData(query)
     song_data = await api.get_info() if api.is_valid() else await api.search(limit="5")
+
     if isinstance(song_data, types.Error):
         await message.reply_text(f"Error: {song_data.message}")
         return
@@ -37,6 +33,24 @@ async def spotify_search(_: Client, message: types.Message):
         disable_web_page_preview=True,
         reply_markup=types.ReplyMarkupInlineKeyboard(keyboard),
     )
+
+
+@Client.on_message(filters=Filter.command(["spot", "spotify", "song"]))
+async def spotify_cmd(_: Client, message: types.Message):
+    parts = message.text.split(" ", 1)
+    if len(parts) < 2:
+        await message.reply_text("Please provide a search query.")
+        return
+
+    query = parts[1]
+    await process_spotify_query(message, query)
+
+
+@Client.on_message(filters=Filter.sp_tube())
+async def spotify_autodetect(_: Client, message: types.Message):
+    await process_spotify_query(message, message.text)
+
+
 
 @Client.on_message(filters=Filter.command(["dl_zip", "playlist"]))
 async def dl_playlist(c: Client, message: types.Message):

@@ -49,5 +49,3 @@ class URLShortener:
         return hex_digest[:self._token_len]
 
 shortener = URLShortener()
-
-

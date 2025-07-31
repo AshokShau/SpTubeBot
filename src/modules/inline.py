@@ -48,7 +48,7 @@ async def inline_search(c: Client, message: types.UpdateNewInlineQuery):
                 [
                     types.InlineKeyboardButton(
                         text=f"{track.name}",
-                        type=types.InlineKeyboardButtonTypeUrl(url="https://t.me/FallenProjects"),
+                        type=types.InlineKeyboardButtonTypeSwitchInline(query=track.artist, target_chat=types.TargetChatCurrent())
                     ),
                 ],
             ]
@@ -114,10 +114,45 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
     audio_file, cover = result
     caption = f"<b>{track.name}</b>\n<i>{track.artist}</i>"
     parsed_caption = await c.parseTextEntities(caption, types.TextParseModeHTML())
+    cached_file_id = upload_cache.get(track.tc)
+    if cached_file_id:
+        await c.editInlineMessageMedia(
+            inline_message_id=inline_message_id,
+            input_message_content=types.InputMessageAudio(
+                audio=types.InputFileRemote(cached_file_id),
+                album_cover_thumbnail=types.InputThumbnail(types.InputFileLocal(cover)) if cover else None,
+                title=track.name,
+                performer=track.artist,
+                duration=track.duration,
+                caption=parsed_caption,
+            ),
+        )
+        return
+
+    upload = await c.sendAudio(
+        chat_id=config.LOGGER_ID,
+        audio=types.InputFileLocal(audio_file),
+        album_cover_thumbnail=types.InputThumbnail(types.InputFileLocal(cover)) if cover else None,
+        title=track.name,
+        performer=track.artist,
+        duration=track.duration,
+        caption=caption,
+    )
+
+    if isinstance(upload, types.Error):
+        fallback_text = await c.parseTextEntities(upload.message, types.TextParseModeHTML())
+        await c.editInlineMessageText(
+            inline_message_id=inline_message_id,
+            input_message_content=types.InputMessageText(fallback_text),
+        )
+        return
+
+    file_id = upload.content.audio.audio.remote.id
+    upload_cache.set(track.tc, file_id)
     send_audio = await c.editInlineMessageMedia(
         inline_message_id=inline_message_id,
         input_message_content=types.InputMessageAudio(
-            audio=types.InputFileLocal(audio_file),
+            audio=types.InputFileRemote(file_id),
             album_cover_thumbnail=types.InputThumbnail(types.InputFileLocal(cover)) if cover else None,
             title=track.name,
             performer=track.artist,
@@ -133,4 +168,4 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
             inline_message_id=inline_message_id,
             input_message_content=types.InputMessageText(fallback_text),
         )
-
+        return
