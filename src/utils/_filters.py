@@ -119,7 +119,12 @@ class Filter:
             if chat_id is None:
                 return False
 
-            # Allow all URLs in private chats, only valid ones in groups/channels
-            return chat_id > 0 or ApiData(text).is_valid()
+            if ApiData(text).is_valid():
+                return True
+
+            if re.match("^https?://", text):
+                return False
+
+            return chat_id > 0
 
         return filters.create(filter_func)

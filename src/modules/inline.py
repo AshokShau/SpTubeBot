@@ -238,7 +238,7 @@ async def process_snap_inline(c: Client, message: types.UpdateNewInlineQuery, qu
                 id=f"video_{idx}",
                 video_url=video_url,
                 mime_type="video/mp4",
-                thumbnail_url=thumb_url or video_url,
+                thumbnail_url=thumb_url or "",
                 title=f"Video {idx + 1}",
                 description=f"Video result #{idx + 1}",
                 input_message_content=types.InputMessageVideo(
