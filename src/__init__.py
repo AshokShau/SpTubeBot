@@ -16,7 +16,6 @@ logging.basicConfig(
 
 LOGGER = logging.getLogger("Bot")
 
-__version__ = "0.1.1"
 StartTime = datetime.now()
 
 
@@ -39,7 +38,6 @@ class Telegram(Client):
         await get_client_session()
         await super().start()
         self.logger.info(f"Bot started in {datetime.now() - StartTime} seconds.")
-        self.logger.info(f"Version: {__version__}")
 
     async def stop(self) -> None:
         await close_client_session()

@@ -1,5 +1,8 @@
 import asyncio
 
+from pytdbot import types
+
+
 async def has_audio_stream(url: str) -> bool:
     cmd = [
         'ffprobe',
@@ -24,3 +27,4 @@ async def has_audio_stream(url: str) -> bool:
     except Exception as e:
         print(f"Error checking audio stream: {e}")
         return False
+

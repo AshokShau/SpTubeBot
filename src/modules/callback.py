@@ -7,6 +7,24 @@ from src.utils import ApiData, Download, shortener
 @Client.on_updateNewCallbackQuery()
 async def callback_query(c: Client, message: types.UpdateNewCallbackQuery):
     data = message.payload.data.decode()
+    if data.startswith("help_"):
+        await handle_help_callback(c, message)
+        return
+
+    elif data == "back_menu":
+        get_msg = await message.getMessage()
+        if isinstance(get_msg, types.Error):
+            c.logger.warning(f"❌ Failed to get message: {get_msg.message}")
+            return
+        from .start import welcome
+        await welcome(c, get_msg)
+        _del_result = await c.deleteMessages(
+            message.chat_id, [message.message_id], revoke=True
+        )
+        if isinstance(_del_result, types.Error):
+            c.logger.warning(f"Message deletion failed: {_del_result.message}")
+        return
+
     user_id = message.sender_user_id
 
     if not data.startswith("spot_"):
@@ -99,3 +117,81 @@ async def callback_query(c: Client, message: types.UpdateNewCallbackQuery):
     if isinstance(reply, types.Error):
         c.logger.error(f"❌ Failed to send audio file: {reply.message}")
         await msg.edit_text("❌ Failed to send the song. Please try again later.")
+
+async def handle_help_callback(_: Client, message: types.UpdateNewCallbackQuery):
+    data = message.payload.data.decode()
+    platform = data.replace("help_", "")
+
+    examples = {
+        "spotify": (
+            "💡<b>Spotify Downloader</b>\n\n"
+            "Songs available in high-quality 320kbps:\n\n"
+            "👉 https://open.spotify.com/track/3n3Ppam7vgaVa1iaRUc9Lp"
+            "👉  https://open.spotify.com/artist/4YRxDV8wJFPHPTeXepOstw"
+            "👉 https://open.spotify.com/album/2yYfIOq25JQWvUQ9AR172D"
+        ),
+        "youtube": (
+            "💡<b>YouTube Downloader</b>\n\n"
+            "Download videos or audio:\n\n"
+            "👉 https://youtu.be/dQw4w9WgXcQ"
+            "👉 https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ),
+        "soundcloud": (
+            "💡<b>SoundCloud Downloader</b>\n\n"
+            "Get high-quality music:\n\n"
+            "👉 https://soundcloud.com/yagihmael/mood-lofi-1?utm_source=clipboard&utm_medium=text&utm_campaign=social_sharing"
+            "👉 https://soundcloud.com/yagihmael/mood-lofi-1"
+        ),
+        "apple": (
+            "💡<b>Apple Music Downloader</b>\n\n"
+            "Lossless music links supported:\n\n"
+            "👉 https://music.apple.com/us/song/mood-lofi/1674035500"
+            "👉 https://music.apple.com/us/album/ram-siya-ram-from-adipurush-hindi-single/1690001719"
+            "👉 https://music.apple.com/us/album/glory/1763807339"
+            "👉 https://music.apple.com/us/artist/yagihmael/1674035500"
+        ),
+        "instagram": (
+            "💡<b>Instagram Downloader</b>\n\n"
+            "Download Reels, Stories, and Posts:\n\n"
+            "👉 https://www.instagram.com/reel/Cxyz123/"
+        ),
+        "pinterest": (
+            "💡<b>Pinterest Downloader</b>\n\n"
+            "Photos and videos are available to download:\n\n"
+            "👉 https://www.pinterest.com/pin/1085649053904273177/"
+        ),
+        "facebook": (
+            "💡<b>Facebook Downloader</b>\n\n"
+            "Works with videos from public pages:\n\n"
+            "👉 https://www.facebook.com/watch/?v=123456789"
+        ),
+        "twitter": (
+            "💡<b>Twitter Downloader</b>\n\n"
+            "Download videos or Photos from posts:\n\n"
+            "👉 https://x.com/i/status/1951310276814578086"
+            "👉 https://twitter.com/i/status/1951310276814578086"
+            "👉 https://x.com/luismbat/status/1951307858764607604/photo/1"
+        ),
+        "tiktok": (
+            "💡<b>TikTok Downloader</b>\n\n"
+            "Supports watermark-free download:\n\n"
+            "👉 https://vt.tiktok.com/ZSB3BovQp/"
+            "👉 https://vt.tiktok.com/ZSSe7NprD/"
+        )
+    }
+
+    reply_text = examples.get(platform, "<b>No help available for this platform.</b>")
+    await message.answer(text="Help Menu")
+    await message.edit_message_text(
+        text=reply_text,
+        parse_mode="html",
+        disable_web_page_preview=True,
+        reply_markup=types.ReplyMarkupInlineKeyboard([
+            [
+                types.InlineKeyboardButton(
+                    text="⬅️ Back",
+                    type=types.InlineKeyboardButtonTypeCallback("back_menu".encode())
+                )
+            ]
+        ])
+    )
