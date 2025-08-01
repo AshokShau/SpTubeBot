@@ -20,6 +20,7 @@ async def start_cmd(c: Client, message: types.Message):
         "• <b>Instagram</b> (Reels, Posts, Stories)\n"
         "• <b>Pinterest</b>\n"
         "• <b>Facebook</b> (Videos)\n"
+        "• <b>Twitter</b>\n"
         "• <b>TikTok</b>\n\n"
         f"<b>📚 Version:</b> <code>{__version__}</code>\n"
         "📥 <b>How to use:</b>\n"
