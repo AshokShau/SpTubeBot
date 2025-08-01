@@ -88,7 +88,7 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
     url = shortener.decode_url(result_id)
     if not url:
         return None
-    
+
     api = ApiData(url)
     if api.is_save_snap_url():
         return None
