@@ -262,10 +262,10 @@ class Download:
         finally:
             base64_path.unlink(missing_ok=True)
 
-    async def download_file(self, url: str, file_path: str = "") -> str:
-        """Optimized file download with proper error handling."""
+    async def download_file(self, url: str, file_path: str = "") -> str | types.Error:
+        """Optimized file download with browser-like headers"""
         if not url:
-            raise ValueError("Empty URL provided")
+            return types.Error(code=400, message="No URL provided")
 
         file_path = Path(file_path) if file_path else self._generate_filename(url)
 
@@ -275,10 +275,23 @@ class Download:
         temp_path = file_path.with_suffix(file_path.suffix + '.part')
         session = await get_client_session()
 
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+        }
+
         try:
-            async with session.get(url) as resp:
+            async with session.get(url, headers=headers) as resp:
                 if resp.status != 200:
-                    raise Exception(f"HTTP {resp.status} for {url}")
+                    return types.Error(code=resp.status, message=f"Unexpected status code: {resp.status}")
 
                 with temp_path.open('wb') as f:
                     async for chunk in resp.content.iter_chunked(CHUNK_SIZE):
@@ -287,11 +300,11 @@ class Download:
             temp_path.rename(file_path)
             file_path.chmod(DEFAULT_FILE_PERM)
             return str(file_path)
-        except Exception:
+        except Exception as e:
             temp_path.unlink(missing_ok=True)
-            raise
+            return types.Error(code=500, message=f"Failed to download file: {str(e)}")
         finally:
-            await resp.release()
+            await session.close()
 
     def _generate_filename(self, url: str) -> Path:
         """Generate a safe filename from URL."""

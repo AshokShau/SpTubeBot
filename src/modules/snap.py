@@ -40,6 +40,14 @@ async def process_insta_query(client: Client, message: types.Message, query: str
     for batch in batch_chunks(images, 10):
         if len(batch) == 1:
             done = await message.reply_photo(photo=types.InputFileRemote(batch[0]))
+            if isinstance(done, types.Error) and "WEBPAGE_CURL_FAILED" in done.message:
+                dl = Download(None)
+                local_file = await dl.download_file(batch[0], "")
+                if isinstance(local_file, types.Error):
+                    await message.reply_text(f"Image Error: {local_file.message}")
+                    return
+
+                await message.reply_photo(photo=types.InputFileLocal(local_file))
         else:
             done = await client.sendMessageAlbum(
                 chat_id=message.chat_id,
@@ -64,6 +72,10 @@ async def process_insta_query(client: Client, message: types.Message, query: str
         if isinstance(done, types.Error) and "WEBPAGE_CURL_FAILED" in done.message:
             dl = Download(None)
             local_file = await dl.download_file(url, "")
+            if isinstance(local_file, types.Error):
+                await message.reply_text(f"Video Error: {local_file.message}")
+                return
+
             await message.reply_video(video=types.InputFileLocal(local_file))
         return
 
