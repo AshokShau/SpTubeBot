@@ -16,7 +16,7 @@ from pytdbot import types
 
 from src import config
 
-from ._api import ApiData, get_client_session, _executor
+from ._api import ApiData, _executor, HttpClient
 from ._dataclass import TrackInfo, PlatformTracks, MusicTrack
 
 # Constants
@@ -103,16 +103,16 @@ class Download:
             logger.info(f"Processed {self.track.tc} in {time.monotonic() - start_time:.2f}s")
 
     async def download_and_decrypt(self, encrypted_path: Path, decrypted_path: Path) -> None:
-        """Optimized download and decrypt pipeline."""
-        session = await get_client_session()
+        """Optimized download and decrypt pipeline using httpx."""
+        client = await HttpClient.get_client()
 
         try:
-            async with session.get(self.track.cdnurl) as resp:
-                if resp.status != 200:
-                    raise Exception(f"Unexpected status code: {resp.status}")
+            async with client.stream('GET', self.track.cdnurl) as response:
+                if response.status_code != 200:
+                    raise Exception(f"Unexpected status code: {response.status_code}")
 
                 with encrypted_path.open('wb') as f:
-                    async for chunk in resp.content.iter_chunked(CHUNK_SIZE):
+                    async for chunk in response.aiter_bytes(CHUNK_SIZE):
                         f.write(chunk)
 
             decrypted_data = await asyncio.get_event_loop().run_in_executor(
@@ -263,7 +263,6 @@ class Download:
             base64_path.unlink(missing_ok=True)
 
     async def download_file(self, url: str, file_path: str = "") -> str | types.Error:
-        """Optimized file download with browser-like headers"""
         if not url:
             return types.Error(code=400, message="No URL provided")
 
@@ -273,28 +272,22 @@ class Download:
             return str(file_path)
 
         temp_path = file_path.with_suffix(file_path.suffix + '.part')
-        session = await get_client_session()
-
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'none',
-            'Sec-Fetch-User': '?1',
-        }
+        client = await HttpClient.get_client()
 
         try:
-            async with session.get(url, headers=headers) as resp:
-                if resp.status != 200:
-                    return types.Error(code=resp.status, message=f"Unexpected status code: {resp.status}")
+            async with client.stream(
+                    'GET',
+                    url,
+                    follow_redirects=True
+            ) as response:
+                if response.status_code != 200:
+                    return types.Error(
+                        code=response.status_code,
+                        message=f"Unexpected status code: {response.status_code}"
+                    )
 
                 with temp_path.open('wb') as f:
-                    async for chunk in resp.content.iter_chunked(CHUNK_SIZE):
+                    async for chunk in response.aiter_bytes(CHUNK_SIZE):
                         f.write(chunk)
 
             temp_path.rename(file_path)
@@ -303,8 +296,6 @@ class Download:
         except Exception as e:
             temp_path.unlink(missing_ok=True)
             return types.Error(code=500, message=f"Failed to download file: {str(e)}")
-        finally:
-            await session.close()
 
     def _generate_filename(self, url: str) -> Path:
         """Generate a safe filename from URL."""
@@ -322,7 +313,6 @@ class Download:
         return re.sub(r'[^\w\-_. ]', '_', name)
 
     async def save_cover(self, cover_url: Optional[str]) -> Optional[str]:
-        """Optimized cover download with caching."""
         if not cover_url:
             return None
 
@@ -331,19 +321,19 @@ class Download:
             return str(cover_path)
 
         try:
-            session = await get_client_session()
-            async with session.get(cover_url) as resp:
-                if resp.status != 200:
-                    return None
+            client = await HttpClient.get_client()
+            response = await client.get(cover_url)
+            if response.status_code != 200:
+                return None
 
-                cover_data = await resp.read()
-                if len(cover_data) > MAX_COVER_SIZE:
-                    logger.warning(f"Cover too large ({len(cover_data)} bytes)")
-                    return None
+            cover_data = response.content
+            if len(cover_data) > MAX_COVER_SIZE:
+                logger.warning(f"Cover too large ({len(cover_data)} bytes)")
+                return None
 
-                cover_path.write_bytes(cover_data)
-                cover_path.chmod(DEFAULT_FILE_PERM)
-                return str(cover_path)
+            cover_path.write_bytes(cover_data)
+            cover_path.chmod(DEFAULT_FILE_PERM)
+            return str(cover_path)
         except Exception as e:
             logger.warning(f"Failed to download cover: {e}")
             return None

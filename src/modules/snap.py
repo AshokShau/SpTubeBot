@@ -32,7 +32,7 @@ async def process_insta_query(client: Client, message: types.Message, query: str
         return
 
     if not api_data:
-        await message.reply_text("No results found.")
+        client.logger.warning(f"No snap found for {query}")
         return
 
     # --- Image Handling ---
@@ -91,7 +91,7 @@ async def process_insta_query(client: Client, message: types.Message, query: str
     # Videos with audio
     for batch in batch_chunks(videos_with_audio, 10):
         if len(batch) == 1:
-            done = await message.reply_animation(animation=types.InputFileRemote(batch[0]))
+            done = await message.reply_video(video=types.InputFileRemote(batch[0]))
         else:
             done = await client.sendMessageAlbum(
                 chat_id=message.chat_id,
