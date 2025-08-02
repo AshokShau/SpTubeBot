@@ -89,10 +89,14 @@ class ApiData:
             r"(https?://(?:www\.)?(?:x|twitter)\.com/[^\s]+)",
             re.IGNORECASE
         )
+        threads_redex = re.compile(
+            r'^https?://(?:www\.)?threads\.(?:com|net)/@[\w.-]+/post/[\w-]+(?:\?[\w=&%-]+)?$',
+            re.IGNORECASE
+        )
 
         return any(
             regex.search(self.query)
-            for regex in (insta_regex, pin_regex, fb_watch_regex, fb_video_regex, tiktok_regex, x_regex)
+            for regex in (insta_regex, pin_regex, fb_watch_regex, fb_video_regex, tiktok_regex, x_regex, threads_redex)
         )
 
     async def get_info(self) -> Union[types.Error, PlatformTracks]:

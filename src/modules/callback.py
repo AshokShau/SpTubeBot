@@ -177,7 +177,12 @@ async def handle_help_callback(_: Client, message: types.UpdateNewCallbackQuery)
             "Supports watermark-free download:\n\n"
             "👉 <code>https://vt.tiktok.com/ZSB3BovQp/</code>\n"
             "👉 <code>https://vt.tiktok.com/ZSSe7NprD/</code>"
-        )
+        ),
+        "threads": (
+            "💡<b>Threads Downloader</b>\n\n"
+            "Download media from Threads:\n\n"
+            "👉 <code>https://www.threads.com/@camycavero/post/DM0FquaM2At?xmt=AQF0u_6ebeMHEjWCw0cm0Li4i8fI3INIU7YeSMffM9DmDw</code>"
+        ),
     }
 
     reply_text = examples.get(platform, "<b>No help available for this platform.</b>")

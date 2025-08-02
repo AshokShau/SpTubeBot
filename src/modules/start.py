@@ -66,6 +66,10 @@ def get_main_menu_keyboard(bot_username: str) -> types.ReplyMarkupInlineKeyboard
             types.InlineKeyboardButton(
                 text="TikTok",
                 type=types.InlineKeyboardButtonTypeCallback("help_tiktok".encode())
+            ),
+            types.InlineKeyboardButton(
+                text="Threads",
+                type=types.InlineKeyboardButtonTypeCallback("help_threads".encode())
             )
         ],
     ])
