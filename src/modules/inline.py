@@ -1,3 +1,4 @@
+import uuid
 from typing import Union
 
 from pytdbot import Client, types
@@ -179,17 +180,21 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
     return None
 
 
+def get_query_id():
+    return str(uuid.uuid4())
+
 async def process_snap_inline(c: Client, message: types.UpdateNewInlineQuery, query: str):
     api = ApiData(query)
     api_data: Union[APIResponse, types.Error, None] = await api.get_snap()
-    if isinstance(api_data, types.Error):
+
+    if isinstance(api_data, types.Error) or not api_data:
         text = api_data.message.strip() or "An unknown error occurred."
         parse = await c.parseTextEntities(text, types.TextParseModeHTML())
         await c.answerInlineQuery(
             inline_query_id=message.id,
             results=[
                 types.InputInlineQueryResultArticle(
-                    id="error",
+                    id=get_query_id(),
                     title="❌ Search Failed",
                     description="Something went wrong.",
                     input_message_content=types.InputMessageText(text=parse)
@@ -217,7 +222,7 @@ async def process_snap_inline(c: Client, message: types.UpdateNewInlineQuery, qu
 
         results.append(
             types.InputInlineQueryResultPhoto(
-                id=f"photo_{idx}",
+                id=get_query_id(),
                 photo_url=image_url,
                 thumbnail_url=image_url,
                 title=f"Photo {idx + 1}",
@@ -235,7 +240,7 @@ async def process_snap_inline(c: Client, message: types.UpdateNewInlineQuery, qu
 
         results.append(
             types.InputInlineQueryResultVideo(
-                id=f"video_{idx}",
+                id=get_query_id(),
                 video_url=video_url,
                 mime_type="video/mp4",
                 thumbnail_url=thumb_url or "",
@@ -253,7 +258,7 @@ async def process_snap_inline(c: Client, message: types.UpdateNewInlineQuery, qu
         parse = await c.parseTextEntities("No media found for this query", types.TextParseModeHTML())
         results.append(
             types.InputInlineQueryResultArticle(
-                id="no_results",
+                id=get_query_id(),
                 title="No media found",
                 description="Try a different search term",
                 input_message_content=types.InputMessageText(text=parse)
