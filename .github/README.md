@@ -1,6 +1,6 @@
 # 🎵 SongBot - Telegram Music Downloader Bot
 
-A high-performance Telegram bot for downloading songs from Spotify and YouTube in premium quality.
+A high-performance Telegram bot to download songs from **Spotify** and **YouTube** in 320kbps quality.
 
 <p align="center">
   <a href="https://github.com/AshokShau/SpTubeBot/stargazers">
@@ -12,17 +12,7 @@ A high-performance Telegram bot for downloading songs from Spotify and YouTube i
   <a href="https://github.com/AshokShau/SpTubeBot/releases">
     <img src="https://img.shields.io/github/v/release/AshokShau/SpTubeBot?style=flat-square" alt="Release"/>
   </a>
-
-  <a href="https://goreportcard.com/report/github.com/AshokShau/SpTubeBot">
-    <img src="https://goreportcard.com/badge/github.com/AshokShau/SpTubeBot?style=flat-square" alt="Go Report Card"/>
-  </a>
-  <a href="https://img.shields.io/github/go-mod/go-version/AshokShau/SpTubeBot">
-    <img src="https://img.shields.io/github/go-mod/go-version/AshokShau/SpTubeBot?style=flat-square" alt="Go Version"/>
-  </a>
-  <a href="https://golang.org/">
-    <img src="https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat-square&logo=go" alt="Go Version"/>
-  </a>
-  <a href="https://github.com/AshokShau/SpTubeBot/blob/main/LICENSE">
+  <a href="https://github.com/AshokShau/SpTubeBot/blob/dev/LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License"/>
   </a>
   <a href="https://t.me/FallenApiBot">
@@ -30,70 +20,98 @@ A high-performance Telegram bot for downloading songs from Spotify and YouTube i
   </a>
 </p>
 
-## 🌟 Key Features
+---
 
-- 🎧 Download 320kbps quality songs  
-- ⚡ Lightning-fast Spotify link processing  
-- 📥 Supports single tracks, albums, and playlists  
-- 🤖 Seamless Telegram integration (PM + Groups)  
-- 🐳 Docker-ready for easy deployment  
+## 🌟 Features
+
+* 🎧 Download music in **320kbps** quality
+* 🔗 Supports Multiple Platforms
+* 📥 Works with tracks, albums, and playlists
+* 🤖 Telegram inline support + command mode
+* 💾 Built-in cache for faster responses
+* 🐳 Docker-ready for seamless deployment
+
+### Platforms
+```
+Stream, download, and enjoy music from your favorite platforms:
+• Spotify
+• YouTube
+• SoundCloud
+• Apple Music
+
+🎥 Also supports media from:
+• Instagram (Reels, Posts, Stories)
+• Pinterest
+• Facebook (Videos)
+• TikTok
+• Twitter
+```
+
+---
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### ⚙️ Prerequisites
 
-- [Go 1.21+](https://golang.org/dl/)
-- [Telegram Bot Token](https://t.me/BotFather)
-- [Spotify/YouTube API Keys](https://t.me/FallenApiBot)
+* Python 3.10+
+* [Telegram Bot Token](https://t.me/BotFather)
+* API Key via [@FallenApiBot](https://t.me/FallenApiBot)
 
-### Basic Installation
+---
+
+### 🧑‍💻 Manual Setup
 
 ```bash
-# Clone the repository
+sudo apt-get install git python3-pip ffmpeg tmux -y
+pip3 install uv
+
 git clone https://github.com/AshokShau/SpTubeBot
+
 cd SpTubeBot
+uv venv
 
-# Configure environment
+source .venv/bin/activate
+uv pip install -e .
+
 cp sample.env .env
-nano .env  # Edit with your credentials
+nano .env
 
-# Build & Run
-go build -o songBot
-./songBot
-````
-
-## 🛠 Advanced Setup
-
-### Docker Deployment
-
-```bash
-docker build -t songbot .
-docker run -d --name songbot --env-file .env songbot
+# Run the bot
+start
 ```
 
-## 📚 Usage Guide
+---
 
-| Command          | Description                |
-|------------------|----------------------------|
-| `/start`         | Show welcome message       |
-| `/spotify [url]` | Download from Spotify link |
-| `/help`          | Show command reference     |
+### 🐳 Docker Deployment
 
-**Inline Mode**: Type `@SpTubeBot` in any chat to search songs instantly!
+```bash
+# Build the image
+docker build -t sp-tube-bot .
+
+# Run the container (Make sure to create a .env file first)
+docker run -d --name songbot --env-file .env sp-tube-bot
+```
+
+---
 
 ## 🆘 Support
 
-For issues and feature requests:
+Have questions or found a bug?
 
-* [GitHub Issues](https://github.com/AshokShau/SpTubeBot/issues)
-* Telegram Support: [@FallenProjects](https://t.me/FallenProjects)
+* Open an issue: [GitHub Issues](https://github.com/AshokShau/SpTubeBot/issues)
+* Telegram: [@FallenProjects](https://t.me/FallenProjects)
+
+---
 
 ## 📜 License
 
-MIT License - See [LICENSE](/LICENSE) for full text.
+Licensed under the [MIT License](/LICENSE).
 
 ---
 
 <p align="center">
-❤️ Enjoy the music! Support the project by starring the repo.
+  ❤️ Enjoy the music? Star the repo & share the bot with your friends!
 </p>
+
+---
+

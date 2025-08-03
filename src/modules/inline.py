@@ -1,19 +1,21 @@
+from typing import Union
+
 from pytdbot import Client, types
 
 from src import config
-from src.utils import ApiData, Download, upload_cache
+from src.utils import ApiData, Download, upload_cache, shortener, APIResponse
 
 
 @Client.on_updateNewInlineQuery()
 async def inline_search(c: Client, message: types.UpdateNewInlineQuery):
     query = message.query.strip()
     if not query:
-        return
-
+        return None
     api = ApiData(query)
-    search = await api.search(limit="15")
+    if api.is_save_snap_url():
+        return await process_snap_inline(c, message, query)
 
-    # Handle API error
+    search = await api.get_info() if api.is_valid() else await api.search(limit="15")
     if isinstance(search, types.Error):
         await c.answerInlineQuery(
             message.id,
@@ -25,7 +27,7 @@ async def inline_search(c: Client, message: types.UpdateNewInlineQuery):
                 )
             ]
         )
-        return
+        return None
 
     results = []
     for track in search.results:
@@ -56,7 +58,7 @@ async def inline_search(c: Client, message: types.UpdateNewInlineQuery):
 
         results.append(
             types.InputInlineQueryResultArticle(
-                id=track.id,
+                id=shortener.encode_url(track.url),
                 title=f"{track.name} - {track.artist}",
                 description=f"{track.name} by {track.artist} ({track.year})",
                 thumbnail_url=track.cover_small,
@@ -72,29 +74,34 @@ async def inline_search(c: Client, message: types.UpdateNewInlineQuery):
 
     if isinstance(response, types.Error):
         c.logger.warning(f"❌ Inline response error: {response.message}")
+    return None
 
 
 @Client.on_updateNewChosenInlineResult()
 async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
     result_id = message.result_id
     inline_message_id = message.inline_message_id
-
-    # Can't edit if no inline_message_id is present
     if not inline_message_id:
-        c.logger.warning(message)
-        return
+        return None
 
     # Fetch track data
-    api = ApiData(result_id)
+    url = shortener.decode_url(result_id)
+    if not url:
+        return None
+
+    api = ApiData(url)
+    if api.is_save_snap_url():
+        return None
+
     track = await api.get_track()
     if isinstance(track, types.Error):
-        return
+        return None
 
     status_text = f"<b>🎵 {track.name}</b>\n👤 {track.artist} | 📀 {track.album}\n⏱️ {track.duration}s"
     parsed_status = await c.parseTextEntities(status_text, types.TextParseModeHTML())
     if isinstance(parsed_status, types.Error):
         c.logger.warning(f"❌ Text parse error: {parsed_status.message}")
-        return
+        return None
 
     await c.editInlineMessageText(
         inline_message_id=inline_message_id,
@@ -109,7 +116,7 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
             inline_message_id=inline_message_id,
             input_message_content=types.InputMessageText(error_text),
         )
-        return
+        return None
 
     audio_file, cover = result
     caption = f"<b>{track.name}</b>\n<i>{track.artist}</i>"
@@ -127,7 +134,7 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
                 caption=parsed_caption,
             ),
         )
-        return
+        return None
 
     upload = await c.sendAudio(
         chat_id=config.LOGGER_ID,
@@ -145,7 +152,7 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
             inline_message_id=inline_message_id,
             input_message_content=types.InputMessageText(fallback_text),
         )
-        return
+        return None
 
     file_id = upload.content.audio.audio.remote.id
     upload_cache.set(track.tc, file_id)
@@ -168,4 +175,95 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
             inline_message_id=inline_message_id,
             input_message_content=types.InputMessageText(fallback_text),
         )
+        return None
+    return None
+
+
+async def process_snap_inline(c: Client, message: types.UpdateNewInlineQuery, query: str):
+    api = ApiData(query)
+    api_data: Union[APIResponse, types.Error, None] = await api.get_snap()
+    if isinstance(api_data, types.Error):
+        text = api_data.message.strip() or "An unknown error occurred."
+        parse = await c.parseTextEntities(text, types.TextParseModeHTML())
+        await c.answerInlineQuery(
+            inline_query_id=message.id,
+            results=[
+                types.InputInlineQueryResultArticle(
+                    id="error",
+                    title="❌ Search Failed",
+                    description="Something went wrong.",
+                    input_message_content=types.InputMessageText(text=parse)
+                )
+            ],
+            cache_time=5
+        )
         return
+
+    results = []
+    reply_markup = types.ReplyMarkupInlineKeyboard(
+        [
+            [
+                types.InlineKeyboardButton(
+                    text=f"Search Again",
+                    type=types.InlineKeyboardButtonTypeSwitchInline(query=query, target_chat=types.TargetChatCurrent())
+                ),
+            ],
+        ]
+    )
+
+    for idx, image_url in enumerate(api_data.image or []):
+        if not image_url or not image_url.startswith("http"):
+            continue
+
+        results.append(
+            types.InputInlineQueryResultPhoto(
+                id=f"photo_{idx}",
+                photo_url=image_url,
+                thumbnail_url=image_url,
+                title=f"Photo {idx + 1}",
+                description=f"Image result #{idx + 1}",
+                input_message_content = types.InputMessagePhoto(photo=types.InputFileRemote(image_url)),
+                reply_markup=reply_markup
+            )
+        )
+
+    for idx, video_data in enumerate(api_data.video or []):
+        video_url = getattr(video_data, 'video', None)
+        thumb_url = getattr(video_data, 'thumbnail', '')
+        if not video_url or not video_url.startswith("http"):
+            continue
+
+        results.append(
+            types.InputInlineQueryResultVideo(
+                id=f"video_{idx}",
+                video_url=video_url,
+                mime_type="video/mp4",
+                thumbnail_url=thumb_url or "",
+                title=f"Video {idx + 1}",
+                description=f"Video result #{idx + 1}",
+                input_message_content=types.InputMessageVideo(
+                    video=types.InputFileRemote(video_url),
+                    thumbnail=types.InputThumbnail(types.InputFileRemote(thumb_url or video_url))
+                ),
+                reply_markup=reply_markup
+            )
+        )
+
+    if len(results) == 0:
+        parse = await c.parseTextEntities("No media found for this query", types.TextParseModeHTML())
+        results.append(
+            types.InputInlineQueryResultArticle(
+                id="no_results",
+                title="No media found",
+                description="Try a different search term",
+                input_message_content=types.InputMessageText(text=parse)
+            )
+        )
+
+    done = await c.answerInlineQuery(
+        inline_query_id=message.id,
+        results=results,
+        cache_time=5,
+    )
+    if isinstance(done, types.Error):
+        c.logger.error(f"❌ Failed to answer inline query: {done.message}")

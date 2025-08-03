@@ -1,43 +1,39 @@
 import re
-from typing import Union
+from typing import Union, Optional, Pattern, Set
 
 from pytdbot import filters, types
-
 from src.utils._api import ApiData
 
 
 class Filter:
     @staticmethod
-    def _extract_text(event) -> str | None:
-        if isinstance(event, types.Message) and isinstance(
-            event.content, types.MessageText
-        ):
+    def _extract_text(event: Union[types.Message, types.UpdateNewMessage, types.UpdateNewCallbackQuery]) -> Optional[
+        str]:
+        """Extract text content from different event types."""
+        if isinstance(event, types.Message) and isinstance(event.content, types.MessageText):
             return event.content.text.text
-        if isinstance(event, types.UpdateNewMessage) and isinstance(
-            event.message, types.MessageText
-        ):
+        if isinstance(event, types.UpdateNewMessage) and isinstance(event.message, types.MessageText):
             return event.message.text.text
         if isinstance(event, types.UpdateNewCallbackQuery) and event.payload:
             return event.payload.data.decode()
-
         return None
 
     @staticmethod
-    def command(
-        commands: Union[str, list[str]], prefixes: str = "/!"
-    ) -> filters.Filter:
+    def command(commands: Union[str, list[str]], prefixes: str = "/!") -> filters.Filter:
         """
         Filter for commands.
 
-        Supports multiple commands and prefixes like / or !. Also handles commands with
-        @mentions (e.g., /start@BotName).
-        """
-        if isinstance(commands, str):
-            commands = [commands]
-        commands_set = {cmd.lower() for cmd in commands}
+        Args:
+            commands: Single command or list of commands to match
+            prefixes: String of allowed command prefixes (default: "/!")
 
-        pattern = re.compile(
-            rf"^[{re.escape(prefixes)}](\w+)(?:@(\w+))?", re.IGNORECASE
+        Returns:
+            Filter that matches commands with optional bot username mention
+        """
+        commands_set: Set[str] = {cmd.lower() for cmd in ([commands] if isinstance(commands, str) else commands)}
+        pattern: Pattern = re.compile(
+            rf"^[{re.escape(prefixes)}](\w+)(?:@(\w+))?",
+            re.IGNORECASE
         )
 
         async def filter_func(client, event) -> bool:
@@ -62,12 +58,18 @@ class Filter:
         return filters.create(filter_func)
 
     @staticmethod
-    def regex(pattern: str) -> filters.Filter:
+    def regex(pattern: str, flags: int = 0) -> filters.Filter:
         """
         Filter for messages or callback queries matching a regex pattern.
-        """
 
-        compiled = re.compile(pattern)
+        Args:
+            pattern: Regex pattern to match
+            flags: Regex flags (default: 0)
+
+        Returns:
+            Filter that matches text against the compiled regex pattern
+        """
+        compiled: Pattern = re.compile(pattern, flags)
 
         async def filter_func(_, event) -> bool:
             text = Filter._extract_text(event)
@@ -77,49 +79,56 @@ class Filter:
 
     @staticmethod
     def save_snap() -> filters.Filter:
-        insta_regex = re.compile(r"(?i)https?://(?:www\.)?(instagram\.com|instagr\.am)/(reel|stories|p|tv)/[^\s/?]+")
-        pin_regex = re.compile(r"(?i)https?://(?:[a-z]+\.)?(pinterest\.com|pin\.it)/[^\s]+")
-        fb_watch_regex = re.compile(r"(?i)https?://(?:www\.)?fb\.watch/[^\s/?]+")
-        fb_video_regex = re.compile(r"(?i)https?://(?:www\.)?facebook\.com/.+/videos/\d+")
+        """
+        Filter for Snapchat URLs that should be saved.
+
+        Returns:
+            Filter that matches valid Snapchat URLs and excludes commands
+        """
+        command_pattern: Pattern = re.compile(r"^[!/]\w+(?:@\w+)?", re.IGNORECASE)
 
         async def filter_func(_, event) -> bool:
             text = Filter._extract_text(event)
-            if not text:
+            if not text or command_pattern.match(text.strip()):
                 return False
-
-            prefixes: str = "/!"
-            pattern = re.compile(rf"^[{re.escape(prefixes)}](\w+)(?:@(\w+))?", re.IGNORECASE)
-            if pattern.match(text.strip()):
-                return False
-
-            return any(
-                regex.search(text)
-                for regex in (insta_regex, pin_regex, fb_watch_regex, fb_video_regex)
-            )
+            return ApiData(text).is_save_snap_url()
 
         return filters.create(filter_func)
 
     @staticmethod
     def sp_tube() -> filters.Filter:
-        async def filter_func(_, event) -> bool:
+        """
+        Filter for special tube URLs with additional checks.
+
+        Returns:
+            Filter that matches valid URLs and handles private/group chat logic
+        """
+        command_pattern: Pattern = re.compile(r"^[!/]\w+(?:@\w+)?", re.IGNORECASE)
+
+        async def filter_func(client, event) -> bool:
             text = Filter._extract_text(event)
-            if not text:
+            if not text or command_pattern.match(text.strip()):
                 return False
 
-            # Skip command-like messages
-            command_pattern = re.compile(r"^[!/](\w+)(?:@\w+)?", re.IGNORECASE)
-            if command_pattern.match(text.strip()):
-                return False
-
-            chat_id = None
+            chat_id: Optional[int] = None
             if isinstance(event, types.Message):
+                if event.via_bot_user_id == client.me.id:
+                    return False
                 chat_id = event.chat_id
             elif isinstance(event, types.UpdateNewMessage):
+                if event.message.via_bot_user_id == client.me.id:
+                    return False
                 chat_id = getattr(event.message, "chat_id", None)
 
-            if not chat_id or chat_id <= 0:
+            if chat_id is None:
                 return False
 
-            return ApiData(text).is_valid()
+            if ApiData(text).is_valid():
+                return True
+
+            if re.match("^https?://", text):
+                return False
+
+            return chat_id > 0
 
         return filters.create(filter_func)

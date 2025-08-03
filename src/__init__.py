@@ -4,7 +4,7 @@ from datetime import datetime
 from pytdbot import Client, types
 
 from src import config
-from src.utils import get_client_session, close_client_session
+from src.utils import HttpClient
 
 logging.basicConfig(
     level=logging.INFO,
@@ -13,10 +13,10 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()],
 )
 
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 LOGGER = logging.getLogger("Bot")
 
-__version__ = "0.1.0"
 StartTime = datetime.now()
 
 
@@ -35,14 +35,15 @@ class Telegram(Client):
             options={"ignore_background_updates": True},
         )
 
+        self._http_client = HttpClient()
+
     async def start(self) -> None:
-        await get_client_session()
+        await self._http_client.get_client()
         await super().start()
         self.logger.info(f"Bot started in {datetime.now() - StartTime} seconds.")
-        self.logger.info(f"Version: {__version__}")
 
     async def stop(self) -> None:
-        await close_client_session()
+        await self._http_client.close_client()
         await super().stop()
 
 

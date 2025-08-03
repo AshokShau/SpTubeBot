@@ -6,15 +6,19 @@ from src.utils import ApiData, shortener, Filter, download_playlist_zip
 
 
 async def process_spotify_query(message: types.Message, query: str):
+    response = await message.reply_text("⏳ Searching for tracks...")
+    if isinstance(response, types.Error):
+        await message.reply_text(f"Error: {response.message}")
+        return
+
     api = ApiData(query)
     song_data = await api.get_info() if api.is_valid() else await api.search(limit="5")
-
     if isinstance(song_data, types.Error):
-        await message.reply_text(f"Error: {song_data.message}")
+        await response.edit_text(f"❌ Error: {song_data.message}")
         return
 
     if not song_data or not song_data.results:
-        await message.reply_text("No results found.")
+        await response.edit_text("❌ No results found.")
         return
 
     keyboard = [
@@ -27,7 +31,7 @@ async def process_spotify_query(message: types.Message, query: str):
         for track in song_data.results
     ]
 
-    await message.reply_text(
+    await response.edit_text(
         f"Search results for: <b>{query}</b>\n\nPlease tap on the song you want to download.",
         parse_mode="html",
         disable_web_page_preview=True,
@@ -76,6 +80,10 @@ async def dl_playlist(c: Client, message: types.Message):
         await message.reply_text("you cant dl yt playlist")
         return
 
+    if len(result.results) > 15:
+        await message.reply_text("⚠️ The playlist contains more than 15 tracks. Please download each track individually.")
+        return
+
     reply = await message.reply_text(f"⏳ Downloading {len(result.results)} tracks and creating ZIP…")
 
     zip_path = await download_playlist_zip(result)
@@ -83,8 +91,11 @@ async def dl_playlist(c: Client, message: types.Message):
         await message.reply_text("❌ Failed to download any tracks. Please try again.")
         return
 
-    await c.editMessageMedia(
+    ok = await c.editMessageMedia(
         chat_id=reply.chat_id,
         message_id=reply.id,
         input_message_content=types.InputMessageDocument(types.InputFileLocal(zip_path)),
     )
+    if isinstance(ok, types.Error):
+        await message.reply_text(f"❌ Error: {ok.message}")
+        return

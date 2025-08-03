@@ -1,15 +1,15 @@
 import re
 import urllib.parse
 from typing import Dict, Union, Optional
-
-import aiohttp
+import httpx
 from pytdbot import types
 from concurrent.futures import ThreadPoolExecutor
 from src import config
 from src.utils._dataclass import PlatformTracks, TrackInfo, MusicTrack, APIResponse
 
 # Constants
-DOWNLOAD_TIMEOUT = aiohttp.ClientTimeout(total=300, connect=30)
+DOWNLOAD_TIMEOUT = 300.0  # Total timeout in seconds
+CONNECT_TIMEOUT = 30.0  # Connect timeout in seconds
 DEFAULT_LIMIT = "10"
 MAX_QUERY_LENGTH = 500
 MAX_URL_LENGTH = 5000
@@ -17,31 +17,8 @@ HEADER_ACCEPT = "Accept"
 HEADER_API_KEY = "X-API-Key"
 MIME_APPLICATION = "application/json"
 MAX_CONCURRENT_DOWNLOADS = 5
-_client_session: Optional[aiohttp.ClientSession] = None
+_client: Optional[httpx.AsyncClient] = None
 _executor = ThreadPoolExecutor(max_workers=4)
-
-
-async def get_client_session() -> aiohttp.ClientSession:
-    global _client_session
-    if _client_session is None or _client_session.closed:
-        connector = aiohttp.TCPConnector(
-            limit_per_host=MAX_CONCURRENT_DOWNLOADS,
-            force_close=False,
-            enable_cleanup_closed=True,
-            use_dns_cache=True
-        )
-        _client_session = aiohttp.ClientSession(
-            connector=connector,
-            timeout=DOWNLOAD_TIMEOUT,
-            trust_env=True
-        )
-    return _client_session
-
-async def close_client_session():
-    """Close the global client session when done."""
-    global _client_session
-    if _client_session is not None and not _client_session.closed:
-        await _client_session.close()
 
 URL_PATTERNS = {
     "spotify": re.compile(
@@ -54,10 +31,41 @@ URL_PATTERNS = {
 }
 
 
+class HttpClient:
+    @staticmethod
+    async def get_client() -> httpx.AsyncClient:
+        global _client
+        if _client is None or _client.is_closed:
+            limits = httpx.Limits(
+                max_connections=MAX_CONCURRENT_DOWNLOADS,
+                max_keepalive_connections=MAX_CONCURRENT_DOWNLOADS
+            )
+
+            _client = httpx.AsyncClient(
+                timeout=httpx.Timeout(
+                    connect=CONNECT_TIMEOUT,
+                    read=DOWNLOAD_TIMEOUT,
+                    write=DOWNLOAD_TIMEOUT,
+                    pool=None
+                ),
+                limits=limits,
+                follow_redirects=True,
+                trust_env=True
+            )
+        return _client
+
+    @staticmethod
+    async def close_client():
+        global _client
+        if _client is not None:
+            await _client.aclose()
+            _client = None
+
+
 class ApiData:
     def __init__(self, query: str):
         self.api_url = config.API_URL
-        self.query = self._sanitize_input(query)
+        self.query = self._sanitize_input(query) if query else ""
 
     def is_valid(self) -> bool:
         raw_url = self.query
@@ -76,6 +84,29 @@ class ApiData:
 
         return any(pattern.search(raw_url) for pattern in URL_PATTERNS.values())
 
+    def is_save_snap_url(self) -> bool:
+        insta_regex = re.compile(r"(?i)https?://(?:www\.)?(instagram\.com|instagr\.am)/(reel|stories|p|tv)/[^\s/?]+")
+        pin_regex = re.compile(r"(?i)https?://(?:[a-z]+\.)?(pinterest\.com|pin\.it)/[^\s]+")
+        fb_watch_regex = re.compile(r"(?i)https?://(?:www\.)?fb\.watch/[^\s/?]+")
+        fb_video_regex = re.compile(r"(?i)https?://(?:www\.)?facebook\.com/.+/videos/\d+")
+        tiktok_regex = re.compile(
+            r"https?://(?:www\.|m\.)?(?:vt\.)?tiktok\.com/(?:@[\w.-]+/video/\d+|v/\d+\.html|t/[\w]+|[\w]+)",
+            re.IGNORECASE
+        )
+        x_regex = re.compile(
+            r"(https?://(?:www\.)?(?:x|twitter)\.com/[^\s]+)",
+            re.IGNORECASE
+        )
+        threads_redex = re.compile(
+            r'^https?://(?:www\.)?threads\.(?:com|net)/@[\w.-]+/post/[\w-]+(?:\?[\w=&%-]+)?$',
+            re.IGNORECASE
+        )
+
+        return any(
+            regex.search(self.query)
+            for regex in (insta_regex, pin_regex, fb_watch_regex, fb_video_regex, tiktok_regex, x_regex, threads_redex)
+        )
+
     async def get_info(self) -> Union[types.Error, PlatformTracks]:
         if not self.is_valid():
             return types.Error(message="Url is not valid")
@@ -84,20 +115,20 @@ class ApiData:
     async def _fetch_data(self, raw_url: str) -> Union[types.Error, PlatformTracks]:
         endpoint = f"{self.api_url}/get_url?url={urllib.parse.quote(raw_url)}"
         headers = self._get_headers()
-        session = await get_client_session()
+        client = await HttpClient.get_client()
 
         try:
-            async with session.get(
-                    endpoint,
-                    headers=headers,
-                    raise_for_status=True
-            ) as response:
-                raw_data = await response.json(content_type=None)
-                results = [MusicTrack(**track) for track in raw_data.get("results", [])]
-                return PlatformTracks(results=results)
-        except aiohttp.ClientResponseError as e:
-            return types.Error(message=f"Request failed with status: {e.status}")
-        except aiohttp.ClientError as e:
+            response = await client.get(
+                endpoint,
+                headers=headers
+            )
+            response.raise_for_status()
+            raw_data = response.json()
+            results = [MusicTrack(**track) for track in raw_data.get("results", [])]
+            return PlatformTracks(results=results)
+        except httpx.HTTPStatusError as e:
+            return types.Error(message=f"Request failed with status: {e.response.status_code}")
+        except httpx.RequestError as e:
             return types.Error(message=f"HTTP request failed: {e}")
         except (ValueError, TypeError) as e:
             return types.Error(message=f"Failed to parse JSON response: {e}")
@@ -110,20 +141,20 @@ class ApiData:
             f"?lim={urllib.parse.quote(limit)}"
         )
         headers = self._get_headers()
-        session = await get_client_session()
+        client = await HttpClient.get_client()
 
         try:
-            async with session.get(
-                    endpoint,
-                    headers=headers,
-                    raise_for_status=True
-            ) as response:
-                raw_data = await response.json(content_type=None)
-                results = [MusicTrack(**track) for track in raw_data.get("results", [])]
-                return PlatformTracks(results=results)
-        except aiohttp.ClientResponseError as e:
-            return types.Error(message=f"Request failed with status: {e.status}")
-        except aiohttp.ClientError as e:
+            response = await client.get(
+                endpoint,
+                headers=headers
+            )
+            response.raise_for_status()
+            raw_data = response.json()
+            results = [MusicTrack(**track) for track in raw_data.get("results", [])]
+            return PlatformTracks(results=results)
+        except httpx.HTTPStatusError as e:
+            return types.Error(message=f"Request failed with status: {e.response.status_code}")
+        except httpx.RequestError as e:
             return types.Error(message=f"HTTP request failed: {e}")
         except (ValueError, TypeError) as e:
             return types.Error(message=f"Failed to parse JSON response: {e}")
@@ -137,20 +168,19 @@ class ApiData:
 
         endpoint = f"{self.api_url}/get_track?id={urllib.parse.quote(track_id)}"
         headers = self._get_headers()
-        session = await get_client_session()
+        client = await HttpClient.get_client()
 
         try:
-            async with session.get(
-                    endpoint,
-                    headers=headers,
-                    raise_for_status=True
-            ) as response:
-                raw_data = await response.json(content_type=None)
-                return TrackInfo(**raw_data)
-
-        except aiohttp.ClientResponseError as e:
-            return types.Error(message=f"Request failed with status: {e.status}")
-        except aiohttp.ClientError as e:
+            response = await client.get(
+                endpoint,
+                headers=headers
+            )
+            response.raise_for_status()
+            raw_data = response.json()
+            return TrackInfo(**raw_data)
+        except httpx.HTTPStatusError as e:
+            return types.Error(message=f"Request failed with status: {e.response.status_code}")
+        except httpx.RequestError as e:
             return types.Error(message=f"HTTP request failed: {e}")
         except (ValueError, TypeError) as e:
             return types.Error(message=f"Failed to parse JSON response: {e}")
@@ -158,22 +188,24 @@ class ApiData:
             return types.Error(message=f"Unexpected error: {e}")
 
     async def get_snap(self) -> Union[types.Error, APIResponse]:
+        if not self.is_save_snap_url():
+            return types.Error(message="Url is not valid")
+
         endpoint = f"{self.api_url}/snap?url={urllib.parse.quote(self.query)}"
         headers = self._get_headers()
-        session = await get_client_session()
+        client = await HttpClient.get_client()
 
         try:
-            async with session.get(
-                    endpoint,
-                    headers=headers,
-                    raise_for_status=True
-            ) as response:
-                raw_data = await response.json(content_type=None)
-                return APIResponse(**raw_data)
-
-        except aiohttp.ClientResponseError as e:
-            return types.Error(message=f"Request failed with status: {e.status}")
-        except aiohttp.ClientError as e:
+            response = await client.get(
+                endpoint,
+                headers=headers
+            )
+            response.raise_for_status()
+            raw_data = response.json()
+            return APIResponse(**raw_data)
+        except httpx.HTTPStatusError as e:
+            return types.Error(message=f"Request failed with status: {e.response.status_code}")
+        except httpx.RequestError as e:
             return types.Error(message=f"HTTP request failed: {e}")
         except (ValueError, TypeError) as e:
             return types.Error(message=f"Failed to parse JSON response: {e}")

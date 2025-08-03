@@ -16,14 +16,13 @@ from pytdbot import types
 
 from src import config
 
-from ._api import ApiData, get_client_session, _executor
+from ._api import ApiData, _executor, HttpClient
 from ._dataclass import TrackInfo, PlatformTracks, MusicTrack
 
 # Constants
-DEFAULT_DOWNLOAD_DIR_PERM = 0o755
-DEFAULT_FILE_PERM = 0o644
 MAX_COVER_SIZE = 10 * 1024 * 1024  # 10MB
-CHUNK_SIZE = 64 * 1024  # 64KB chunks for downloads
+CHUNK_SIZE = 1024 * 1024 * 2  # 2MB
+DEFAULT_FILE_PERM = 0o644
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -41,7 +40,7 @@ class Download:
     def __init__(self, track: Optional[TrackInfo]):
         self.track = track
         self.downloads_dir = Path(config.DOWNLOAD_PATH)
-        self.downloads_dir.mkdir(parents=True, exist_ok=True, mode=DEFAULT_DOWNLOAD_DIR_PERM)
+        self.downloads_dir.mkdir(parents=True, exist_ok=True, mode=0o755)
 
     async def process(self) -> Union[Tuple[str, Optional[str]], types.Error]:
         """Process the track download with optimized flow."""
@@ -103,16 +102,16 @@ class Download:
             logger.info(f"Processed {self.track.tc} in {time.monotonic() - start_time:.2f}s")
 
     async def download_and_decrypt(self, encrypted_path: Path, decrypted_path: Path) -> None:
-        """Optimized download and decrypt pipeline."""
-        session = await get_client_session()
+        """Optimized download and decrypt pipeline using httpx."""
+        client = await HttpClient.get_client()
 
         try:
-            async with session.get(self.track.cdnurl) as resp:
-                if resp.status != 200:
-                    raise Exception(f"Unexpected status code: {resp.status}")
+            async with client.stream('GET', self.track.cdnurl) as response:
+                if response.status_code != 200:
+                    raise Exception(f"Unexpected status code: {response.status_code}")
 
                 with encrypted_path.open('wb') as f:
-                    async for chunk in resp.content.iter_chunked(CHUNK_SIZE):
+                    async for chunk in response.aiter_bytes(CHUNK_SIZE):
                         f.write(chunk)
 
             decrypted_data = await asyncio.get_event_loop().run_in_executor(
@@ -262,36 +261,35 @@ class Download:
         finally:
             base64_path.unlink(missing_ok=True)
 
-    async def download_file(self, url: str, file_path: str = "") -> str:
-        """Optimized file download with proper error handling."""
+    async def download_file(self, url: str, file_path: str = "") -> str | types.Error:
         if not url:
-            raise ValueError("Empty URL provided")
+            return types.Error(code=400, message="No URL provided")
 
         file_path = Path(file_path) if file_path else self._generate_filename(url)
 
         if file_path.exists():
             return str(file_path)
 
-        temp_path = file_path.with_suffix(file_path.suffix + '.part')
-        session = await get_client_session()
+        client = await HttpClient.get_client()
 
         try:
-            async with session.get(url) as resp:
-                if resp.status != 200:
-                    raise Exception(f"HTTP {resp.status} for {url}")
+            async with client.stream("GET", url, follow_redirects=True) as response:
+                if response.status_code != 200:
+                    return types.Error(
+                        code=response.status_code,
+                        message=f"Unexpected status code: {response.status_code}"
+                    )
 
-                with temp_path.open('wb') as f:
-                    async for chunk in resp.content.iter_chunked(CHUNK_SIZE):
+                with file_path.open("wb") as f:
+                    async for chunk in response.aiter_bytes(CHUNK_SIZE):
                         f.write(chunk)
 
-            temp_path.rename(file_path)
             file_path.chmod(DEFAULT_FILE_PERM)
             return str(file_path)
-        except Exception:
-            temp_path.unlink(missing_ok=True)
-            raise
-        finally:
-            await resp.release()
+
+        except Exception as e:
+            file_path.unlink(missing_ok=True)
+            return types.Error(code=500, message=f"Download failed: {str(e)}")
 
     def _generate_filename(self, url: str) -> Path:
         """Generate a safe filename from URL."""
@@ -309,7 +307,6 @@ class Download:
         return re.sub(r'[^\w\-_. ]', '_', name)
 
     async def save_cover(self, cover_url: Optional[str]) -> Optional[str]:
-        """Optimized cover download with caching."""
         if not cover_url:
             return None
 
@@ -318,19 +315,19 @@ class Download:
             return str(cover_path)
 
         try:
-            session = await get_client_session()
-            async with session.get(cover_url) as resp:
-                if resp.status != 200:
-                    return None
+            client = await HttpClient.get_client()
+            response = await client.get(cover_url)
+            if response.status_code != 200:
+                return None
 
-                cover_data = await resp.read()
-                if len(cover_data) > MAX_COVER_SIZE:
-                    logger.warning(f"Cover too large ({len(cover_data)} bytes)")
-                    return None
+            cover_data = response.content
+            if len(cover_data) > MAX_COVER_SIZE:
+                logger.warning(f"Cover too large ({len(cover_data)} bytes)")
+                return None
 
-                cover_path.write_bytes(cover_data)
-                cover_path.chmod(DEFAULT_FILE_PERM)
-                return str(cover_path)
+            cover_path.write_bytes(cover_data)
+            cover_path.chmod(DEFAULT_FILE_PERM)
+            return str(cover_path)
         except Exception as e:
             logger.warning(f"Failed to download cover: {e}")
             return None

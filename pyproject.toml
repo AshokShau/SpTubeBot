@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "A high-performance Telegram bot for downloading songs from Spotify, SoundCloud, Apple Music and YouTube in premium quality."
 requires-python = ">=3.13"
 dependencies = [
-     "aiohttp>=3.12.14",
+     "httpx>=0.28.1",
      "pycryptodome>=3.23.0",
      "pydantic>=2.11.7",
      "pytdbot>=0.9.5",
