@@ -90,7 +90,7 @@ async def callback_query(c: Client, message: types.UpdateNewCallbackQuery):
         [
             [
                 types.InlineKeyboardButton(
-                    text=f"{track.name}",
+                    text=f"{track.name[:20] + '...' if len(track.name) > 20 else track.name}",
                     type=types.InlineKeyboardButtonTypeUrl("https://t.me/FallenProjects"),
                 ),
             ],
@@ -121,34 +121,50 @@ async def handle_help_callback(_: Client, message: types.UpdateNewCallbackQuery)
     examples = {
         "spotify": (
             "💡<b>Spotify Downloader</b>\n\n"
-            "Songs available in high-quality 320kbps:\n\n"
-            "👉 <code>https://open.spotify.com/track/3n3Ppam7vgaVa1iaRUc9Lp</code>\n"
-            "👉 <code>https://open.spotify.com/artist/4YRxDV8wJFPHPTeXepOstw</code>\n"
-            "👉 <code>https://open.spotify.com/album/2yYfIOq25JQWvUQ9AR172D</code>"
+            "🔹 Download songs, albums, and playlists in 320kbps quality\n"
+            "🔹 Supports both public and private links\n\n"
+            "Example formats:\n"
+            "👉 <code>https://open.spotify.com/track/*</code> (Single song)\n"
+            "👉 <code>https://open.spotify.com/album/*</code> (Full album)\n"
+            "👉 <code>https://open.spotify.com/playlist/*</code> (Playlist)\n"
+            "👉 <code>https://open.spotify.com/artist/*</code> (Artist's top tracks)"
         ),
         "youtube": (
             "💡<b>YouTube Downloader</b>\n\n"
-            "Download videos or audio:\n\n"
-            "👉 <code>https://youtu.be/dQw4w9WgXcQ</code>\n"
-            "👉 <code>https://www.youtube.com/watch?v=dQw4w9WgXcQ</code>"
+            "🔹 Download videos or extract audio\n"
+            "🔹 Supports both YouTube and YouTube Music links\n\n"
+            "Example formats:\n"
+            "👉 <code>https://youtu.be/*</code> (Short URL)\n"
+            "👉 <code>https://www.youtube.com/watch?v=*</code> (Full URL)\n"
+            "👉 <code>https://music.youtube.com/watch?v=*</code> (YouTube Music)"
         ),
         "soundcloud": (
             "💡<b>SoundCloud Downloader</b>\n\n"
-            "Get high-quality music:\n\n"
-            "👉 <code>https://soundcloud.com/yagihmael/mood-lofi-1?utm_source=clipboard&utm_medium=text&utm_campaign=social_sharing</code>\n"
-            "👉 <code>https://soundcloud.com/yagihmael/mood-lofi-1</code>"
+            "🔹 Download tracks in high-quality\n"
+            "🔹 Supports both public and private tracks\n\n"
+            "Example formats:\n"
+            "👉 <code>https://soundcloud.com/user/track-name</code>\n"
+            "👉 <code>https://soundcloud.com/user/track-name?utm_source=*</code> (With tracking params)"
         ),
         "apple": (
             "💡<b>Apple Music Downloader</b>\n\n"
-            "Lossless music links supported:\n\n"
-            "👉 <code>https://music.apple.com/us/song/mood-lofi/1674035500</code>\n"
-            "👉 <code>https://music.apple.com/us/album/ram-siya-ram-from-adipurush-hindi-single/1690001719</code>\n"
-            "👉 <code>https://music.apple.com/us/album/glory/1763807339</code>\n"
-            "👉 <code>https://music.apple.com/us/artist/yagihmael/1674035500</code>"
+            "🔹 Lossless music downloads\n"
+            "🔹 Supports songs, albums, and artists\n\n"
+            "Example formats:\n"
+            "👉 <code>https://music.apple.com/*</code>\n"
+            "👉 <code>https://music.apple.com/us/song/*</code>\n"
+            "👉 <code>https://music.apple.com/us/album/*</code>\n"
+            "👉 <code>https://music.apple.com/us/artist/*</code>"
         ),
         "instagram": (
-            "💡<b>Instagram Downloader</b>\n\n"
-            "Download Reels, Stories, and Posts:\n\n"
+            "💡<b>Instagram Media Downloader</b>\n\n"
+            "🔹 Download Instagram posts, reels, and stories\n"
+            "🔹 Supports both public and private accounts\n\n"
+            "Example formats:\n"
+            "👉 <code>https://www.instagram.com/p/*</code> (Posts)\n"
+            "👉 <code>https://www.instagram.com/reel/*</code> (Reels)\n"
+            "👉 <code>https://www.instagram.com/stories/*</code> (Stories\n)"
+           "Download Reels, Stories, and Posts:\n\n"
             "👉 <code>https://www.instagram.com/reel/Cxyz123/</code>"
         ),
         "pinterest": (
