@@ -10,6 +10,7 @@ RUN apt-get update && \
         file \
         coreutils \
         gawk \
+        xxd \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
@@ -17,7 +18,7 @@ RUN pip install --no-cache-dir uv
 
 COPY . .
 
-RUN chmod +x /app/cover_gen.sh
+RUN chmod +x cover_gen.sh
 
 RUN uv pip install -e . --system
 
