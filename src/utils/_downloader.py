@@ -49,7 +49,7 @@ class Download:
                 return types.Error(message="Missing CDN URL")
 
             # Check for existing files first
-            output_file = self.downloads_dir / f"{self.track.tc}.ogg"
+            output_file = self.downloads_dir / f"{self._sanitize_filename(self.track.name)}.ogg"
             cover_path = self.downloads_dir / f"{self.track.tc}_cover.jpg"
 
             if output_file.exists():
@@ -303,8 +303,16 @@ class Download:
 
     @staticmethod
     def _sanitize_filename(name: str) -> str:
-        """Sanitize filename with minimal regex."""
-        return re.sub(r'[^\w\-_. ]', '_', name)
+        """Sanitize filename for cross-platform safety."""
+        # Remove control/non-printable characters
+        name = re.sub(r'[\x00-\x1f\x7f]+', '', name)
+        # Replace invalid filename chars with underscore
+        name = re.sub(r'[<>:"/\\|?*]', '_', name)
+        # Allow only letters, numbers, spaces, dash, underscore, and dot
+        name = re.sub(r'[^\w\s\-.]', '_', name)
+        # Collapse multiple spaces/underscores into single space
+        name = re.sub(r'[\s_]+', ' ', name).strip()
+        return name
 
     async def save_cover(self, cover_url: Optional[str]) -> Optional[str]:
         if not cover_url:
