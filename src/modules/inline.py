@@ -49,11 +49,16 @@ async def inline_search(c: Client, message: types.UpdateNewInlineQuery):
             c.logger.warning(f"❌ Error parsing inline result for {track.name}: {parse.message}")
             continue
 
+        token = shortener.encode_url(track.url)
         reply_markup = types.ReplyMarkupInlineKeyboard(
             [
                 [
                     types.InlineKeyboardButton(
-                        text=f"{track.name}",
+                        text="⬇️ Download",
+                        type=types.InlineKeyboardButtonTypeCallback(f"spot_{token}_0".encode())
+                    ),
+                    types.InlineKeyboardButton(
+                        text="🔎 Search Again",
                         type=types.InlineKeyboardButtonTypeSwitchInline(query=track.artist, target_chat=types.TargetChatCurrent())
                     ),
                 ],
@@ -62,7 +67,7 @@ async def inline_search(c: Client, message: types.UpdateNewInlineQuery):
 
         results.append(
             types.InputInlineQueryResultArticle(
-                id=shortener.encode_url(track.url),
+                id=track.id,
                 title=f"{track.name} - {track.artist}",
                 description=f"{track.name} by {track.artist} ({track.year})",
                 thumbnail_url=track.cover_small,
@@ -97,21 +102,17 @@ async def inline_search(c: Client, message: types.UpdateNewInlineQuery):
 async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
     result_id = message.result_id
     inline_message_id = getattr(message, "inline_message_id", None)
-    if inline_message_id is None:
-        # TDLib sometimes doesn’t include inline_message_id; nothing we can edit
-        return None
+    c.logger.info(f"ChosenInline: result_id={result_id} inline_message_id={inline_message_id}")
 
-    # Fetch track data
-    url = shortener.decode_url(result_id)
-    if not url:
-        return None
-
-    api = ApiData(url)
+    # Fetch track data using track_id directly
+    track_id = result_id
+    api = ApiData(track_id)
     if api.is_save_snap_url():
         return None
 
     track = await api.get_track()
     if isinstance(track, types.Error):
+        c.logger.warning(f"ChosenInline: get_track error: {track.message}")
         return None
 
     status_text = f"<b>🎵 {track.name}</b>\n👤 {track.artist} | 📀 {track.album}\n⏱️ {track.duration}s"
@@ -120,10 +121,11 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
         c.logger.warning(f"❌ Text parse error: {parsed_status.message}")
         return None
 
-    await c.editInlineMessageText(
-        inline_message_id=inline_message_id,
-        input_message_content=types.InputMessageText(parsed_status),
-    )
+    if inline_message_id is not None:
+        await c.editInlineMessageText(
+            inline_message_id=inline_message_id,
+            input_message_content=types.InputMessageText(parsed_status),
+        )
 
     dl = Download(track)
     result = await dl.process()
@@ -138,23 +140,27 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
     audio_file, cover = result
     caption = f"<b>{track.name}</b>\n<i>{track.artist}</i>"
     parsed_caption = await c.parseTextEntities(caption, types.TextParseModeHTML())
-    cached_file_id = upload_cache.get(track.tc)
+    # Determine stable cache key: format as "(Platform) Track Name - Artist"
+    cache_key = f"({getattr(track, 'platform', 'Unknown').capitalize()}) {track.name} - {track.artist}"
+    c.logger.info(f"ChosenInline: cache_key={cache_key}")
+    cached_file_id = upload_cache.get(cache_key)
     if cached_file_id:
-        send_try = await c.editInlineMessageMedia(
-            inline_message_id=inline_message_id,
-            input_message_content=types.InputMessageAudio(
-                audio=types.InputFileRemote(cached_file_id),
-                album_cover_thumbnail=types.InputThumbnail(types.InputFileLocal(cover)) if cover else None,
-                title=track.name,
-                performer=track.artist,
-                duration=track.duration,
-                caption=parsed_caption,
-            ),
-        )
-        if not isinstance(send_try, types.Error):
-            return None
+        if inline_message_id is not None:
+            send_try = await c.editInlineMessageMedia(
+                inline_message_id=inline_message_id,
+                input_message_content=types.InputMessageAudio(
+                    audio=types.InputFileRemote(cached_file_id),
+                    album_cover_thumbnail=types.InputThumbnail(types.InputFileLocal(cover)) if cover else None,
+                    title=track.name,
+                    performer=track.artist,
+                    duration=track.duration,
+                    caption=parsed_caption,
+                ),
+            )
+            if not isinstance(send_try, types.Error):
+                return None
         # Fallback using saved message reference if file_id failed
-        ref = getattr(upload_cache, "get_message_ref", lambda *_: None)(track.tc)
+        ref = getattr(upload_cache, "get_message_ref", lambda *_: None)(cache_key)
         if ref:
             # Try using stored chat/message IDs first
             chat_id = ref.get("chat_id")
@@ -176,7 +182,7 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
                             ),
                         )
                         if not isinstance(send_try2, types.Error):
-                            upload_cache.set(track.tc, try_file_id)
+                            upload_cache.set(cache_key, try_file_id)
                             return None
             # If only message link is available, resolve it
             msg_link = ref.get("message_link")
@@ -199,7 +205,7 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
                                 ),
                             )
                             if not isinstance(send_try3, types.Error):
-                                upload_cache.set(track.tc, try_file_id, chat_id=info.chat_id, message_id=info.message.id, message_link=msg_link)
+                                upload_cache.set(cache_key, try_file_id, chat_id=info.chat_id, message_id=info.message.id, message_link=msg_link)
                                 return None
 
     upload = await c.sendAudio(
@@ -213,12 +219,37 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
     )
 
     if isinstance(upload, types.Error):
-        fallback_text = await c.parseTextEntities(upload.message, types.TextParseModeHTML())
-        await c.editInlineMessageText(
-            inline_message_id=inline_message_id,
-            input_message_content=types.InputMessageText(fallback_text),
-        )
-        return None
+        c.logger.error(f"ChosenInline: sendAudio error to LOGGER_ID: {upload.message}")
+        # Fallback: send to the user who chose the inline result
+        user_chat_id = getattr(message, "sender_user_id", None)
+        if user_chat_id:
+            alt_upload = await c.sendAudio(
+                chat_id=user_chat_id,
+                audio=types.InputFileLocal(audio_file),
+                album_cover_thumbnail=types.InputThumbnail(types.InputFileLocal(cover)) if cover else None,
+                title=track.name,
+                performer=track.artist,
+                duration=track.duration,
+                caption=caption,
+            )
+            if isinstance(alt_upload, types.Error):
+                c.logger.error(f"ChosenInline: alt sendAudio error: {alt_upload.message}")
+                if inline_message_id is not None:
+                    fallback_text = await c.parseTextEntities(alt_upload.message, types.TextParseModeHTML())
+                    await c.editInlineMessageText(
+                        inline_message_id=inline_message_id,
+                        input_message_content=types.InputMessageText(fallback_text),
+                    )
+                return None
+            upload = alt_upload
+        else:
+            if inline_message_id is not None:
+                fallback_text = await c.parseTextEntities(upload.message, types.TextParseModeHTML())
+                await c.editInlineMessageText(
+                    inline_message_id=inline_message_id,
+                    input_message_content=types.InputMessageText(fallback_text),
+                )
+            return None
 
     file_id = upload.content.audio.audio.remote.id
     chat_id = getattr(upload, "chat_id", None) or config.LOGGER_ID
@@ -240,27 +271,28 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
         except Exception:
             message_link = None
 
-    upload_cache.set(track.tc, file_id, message_link=message_link, chat_id=chat_id, message_id=message_id)
-    send_audio = await c.editInlineMessageMedia(
-        inline_message_id=inline_message_id,
-        input_message_content=types.InputMessageAudio(
-            audio=types.InputFileRemote(file_id),
-            album_cover_thumbnail=types.InputThumbnail(types.InputFileLocal(cover)) if cover else None,
-            title=track.name,
-            performer=track.artist,
-            duration=track.duration,
-            caption=parsed_caption,
-        ),
-    )
-
-    if isinstance(send_audio, types.Error):
-        c.logger.error(f"❌ Failed to send audio: {send_audio.message}")
-        fallback_text = await c.parseTextEntities(send_audio.message, types.TextParseModeHTML())
-        await c.editInlineMessageText(
+    c.logger.info(f"ChosenInline: caching _id={cache_key} file_id set; msg_url set={bool(message_link)}")
+    upload_cache.set(cache_key, file_id, message_link=message_link, chat_id=chat_id, message_id=message_id)
+    if inline_message_id is not None:
+        send_audio = await c.editInlineMessageMedia(
             inline_message_id=inline_message_id,
-            input_message_content=types.InputMessageText(fallback_text),
+            input_message_content=types.InputMessageAudio(
+                audio=types.InputFileRemote(file_id),
+                album_cover_thumbnail=types.InputThumbnail(types.InputFileLocal(cover)) if cover else None,
+                title=track.name,
+                performer=track.artist,
+                duration=track.duration,
+                caption=parsed_caption,
+            ),
         )
-        return None
+        if isinstance(send_audio, types.Error):
+            c.logger.error(f"❌ Failed to send audio: {send_audio.message}")
+            fallback_text = await c.parseTextEntities(send_audio.message, types.TextParseModeHTML())
+            await c.editInlineMessageText(
+                inline_message_id=inline_message_id,
+                input_message_content=types.InputMessageText(fallback_text),
+            )
+            return None
     return None
 
 

@@ -91,6 +91,7 @@ class MongoUploadCache:
             file_id = doc.get("file_id") if doc else None
             if file_id:
                 self.hot_cache.set(key, file_id)
+            logger.info(f"MongoUploadCache.get: _id={key} hit={'yes' if file_id else 'no'}")
             return file_id
         except Exception as e:
             logger.warning(f"Mongo get failed for key={key}: {e}")
@@ -121,6 +122,7 @@ class MongoUploadCache:
                 {"$set": {"file_id": file_id, "msg_url": message_link}},
                 upsert=True,
             )
+            logger.info(f"MongoUploadCache.set: saved _id={key} file_id={'set' if bool(file_id) else 'missing'} msg_url={'set' if bool(message_link) else 'missing'}")
         except Exception as e:
             logger.warning(f"Mongo set failed for key={key}: {e}")
         finally:
@@ -151,7 +153,7 @@ def _build_instances():
             import pymongo  # noqa: F401
             upload = MongoUploadCache()
             short = MongoURLShortener()
-            logger.info("Using MongoDB for caches")
+            logger.info("Using MongoDB for upload cache; shortener is in-memory")
         else:
             raise RuntimeError("MONGO_URI not configured")
     except Exception as e:
