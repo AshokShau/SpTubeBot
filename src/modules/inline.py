@@ -220,6 +220,7 @@ async def process_snap_inline(c: Client, message: types.UpdateNewInlineQuery, qu
     for idx, image_url in enumerate(api_data.image or []):
         if not image_url or not re.match("^https?://", image_url):
             continue
+
         results.append(
             types.InputInlineQueryResultPhoto(
                 id=get_query_id(),
@@ -243,7 +244,7 @@ async def process_snap_inline(c: Client, message: types.UpdateNewInlineQuery, qu
                 id=get_query_id(),
                 video_url=video_url,
                 mime_type="video/mp4",
-                thumbnail_url=thumb_url if re.match("^https?://", thumb_url) else "https://i.pinimg.com/736x/e2/c6/eb/e2c6eb0b48fc00f1304431bfbcacf50e.jpg",
+                thumbnail_url=thumb_url if thumb_url and re.match("^https?://", thumb_url) else "https://i.pinimg.com/736x/e2/c6/eb/e2c6eb0b48fc00f1304431bfbcacf50e.jpg",
                 title=f"Video {idx + 1}",
                 description=f"Video result #{idx + 1}",
                 input_message_content=types.InputMessageVideo(
@@ -272,3 +273,15 @@ async def process_snap_inline(c: Client, message: types.UpdateNewInlineQuery, qu
     )
     if isinstance(done, types.Error):
         c.logger.error(f"❌ Failed to answer inline query: {done.message}")
+        await c.answerInlineQuery(
+            inline_query_id=message.id,
+            results=[
+                types.InputInlineQueryResultArticle(
+                    id=get_query_id(),
+                    title="❌ Search Failed",
+                    description="Maybe Video size is too big.",
+                    input_message_content=types.InputMessageText(text=done.message)
+                )
+            ],
+            cache_time=5
+        )
