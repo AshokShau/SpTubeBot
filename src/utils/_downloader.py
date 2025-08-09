@@ -78,7 +78,6 @@ class Download:
     async def process_standard(self) -> Tuple[str, Optional[str]]:
         """Optimized standard processing flow."""
         start_time = time.monotonic()
-        output_file = self.output_file
         if not self.track.key:
             raise MissingKeyError("Missing CDN key")
 
@@ -91,7 +90,7 @@ class Download:
                 await self.download_and_decrypt(encrypted_file, decrypted_file)
                 await self.rebuild_ogg(decrypted_file)
                 result = await self.vorb_repair_ogg(decrypted_file)
-                output_file.chmod(DEFAULT_FILE_PERM)
+                self.output_file.chmod(DEFAULT_FILE_PERM)
                 return result
             finally:
                 encrypted_file.unlink(missing_ok=True)
@@ -160,16 +159,14 @@ class Download:
     async def vorb_repair_ogg(self, input_file: Path) -> Tuple[str, Optional[str]]:
         """Optimized metadata adding with error handling."""
         cover_path = await self.save_cover(self.track.cover)
-        output_file = self.downloads_dir / f"{self.track.tc}.ogg"
-
         try:
-            await self._run_ffmpeg(input_file, output_file)
-            await self._add_vorbis_comments(output_file)
+            await self._run_ffmpeg(input_file, self.output_file)
+            await self._add_vorbis_comments(self.output_file)
         except Exception as e:
-            output_file.unlink(missing_ok=True)
+            self.output_file.unlink(missing_ok=True)
             raise e
 
-        return str(output_file), cover_path
+        return str(self.output_file), cover_path
 
     async def _run_ffmpeg(self, input_file: Path, output_file: Path) -> None:
         """Run ffmpeg with optimized parameters."""
