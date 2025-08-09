@@ -1,3 +1,4 @@
+import re
 import uuid
 from typing import Union
 
@@ -217,9 +218,8 @@ async def process_snap_inline(c: Client, message: types.UpdateNewInlineQuery, qu
     )
 
     for idx, image_url in enumerate(api_data.image or []):
-        if not image_url or not image_url.startswith("http"):
+        if not image_url or not re.match("^https?://", image_url):
             continue
-
         results.append(
             types.InputInlineQueryResultPhoto(
                 id=get_query_id(),
@@ -235,7 +235,7 @@ async def process_snap_inline(c: Client, message: types.UpdateNewInlineQuery, qu
     for idx, video_data in enumerate(api_data.video or []):
         video_url = getattr(video_data, 'video', None)
         thumb_url = getattr(video_data, 'thumbnail', '')
-        if not video_url or not video_url.startswith("http"):
+        if not video_url or not re.match("^https?://", video_url):
             continue
 
         results.append(
@@ -243,7 +243,7 @@ async def process_snap_inline(c: Client, message: types.UpdateNewInlineQuery, qu
                 id=get_query_id(),
                 video_url=video_url,
                 mime_type="video/mp4",
-                thumbnail_url=thumb_url or "",
+                thumbnail_url=thumb_url if re.match("^https?://", thumb_url) else "https://i.pinimg.com/736x/e2/c6/eb/e2c6eb0b48fc00f1304431bfbcacf50e.jpg",
                 title=f"Video {idx + 1}",
                 description=f"Video result #{idx + 1}",
                 input_message_content=types.InputMessageVideo(
