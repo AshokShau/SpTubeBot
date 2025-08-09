@@ -4,8 +4,7 @@ from typing import Union
 
 from pytdbot import Client, types
 
-from src import config
-from src.utils import ApiData, Download, upload_cache, shortener, APIResponse
+from src.utils import ApiData, Download, shortener, APIResponse, db
 
 
 @Client.on_updateNewInlineQuery()
@@ -13,7 +12,9 @@ async def inline_search(c: Client, message: types.UpdateNewInlineQuery):
     query = message.query.strip()
     if not query:
         return None
+
     api = ApiData(query)
+
     if api.is_save_snap_url():
         return await process_snap_inline(c, message, query)
 
@@ -23,7 +24,7 @@ async def inline_search(c: Client, message: types.UpdateNewInlineQuery):
             message.id,
             results=[
                 types.InputInlineQueryResultArticle(
-                    id="error",
+                    id=str(uuid.uuid4()),
                     title="❌ Search Failed",
                     description=search.message or "Could not search Spotify.",
                 )
@@ -69,11 +70,7 @@ async def inline_search(c: Client, message: types.UpdateNewInlineQuery):
             )
         )
 
-    response = await c.answerInlineQuery(
-        message.id,
-        results=results,
-    )
-
+    response = await c.answerInlineQuery(message.id, results=results)
     if isinstance(response, types.Error):
         c.logger.warning(f"❌ Inline response error: {response.message}")
     return None
@@ -84,81 +81,69 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
     result_id = message.result_id
     inline_message_id = message.inline_message_id
     if not inline_message_id:
-        return None
+        return
 
-    # Fetch track data
+    # Decode and validate URL
     url = shortener.decode_url(result_id)
     if not url:
-        return None
+        return
 
     api = ApiData(url)
     if api.is_save_snap_url():
-        return None
+        return
 
+    # Fetch track
     track = await api.get_track()
     if isinstance(track, types.Error):
-        return None
+        return
 
+    # Prepare and send "loading" status
     status_text = f"<b>🎵 {track.name}</b>\n👤 {track.artist} | 📀 {track.album}\n⏱️ {track.duration}s"
     parsed_status = await c.parseTextEntities(status_text, types.TextParseModeHTML())
     if isinstance(parsed_status, types.Error):
         c.logger.warning(f"❌ Text parse error: {parsed_status.message}")
-        return None
+        return
 
     await c.editInlineMessageText(
         inline_message_id=inline_message_id,
-        input_message_content=types.InputMessageText(parsed_status),
+        input_message_content=types.InputMessageText(parsed_status)
     )
 
-    dl = Download(track)
-    result = await dl.process()
-    if isinstance(result, types.Error):
-        error_text = await c.parseTextEntities(result.message, types.TextParseModeHTML())
-        await c.editInlineMessageText(
-            inline_message_id=inline_message_id,
-            input_message_content=types.InputMessageText(error_text),
-        )
-        return None
+    # Prepare caption
+    caption_text = f"<b>{track.name}</b>\n<i>{track.artist}</i>"
+    parsed_caption = await c.parseTextEntities(caption_text, types.TextParseModeHTML())
+    if isinstance(parsed_caption, types.Error):
+        c.logger.warning(f"❌ Caption parse error: {parsed_caption.message}")
+        parsed_caption = None
 
-    audio_file, cover = result
-    caption = f"<b>{track.name}</b>\n<i>{track.artist}</i>"
-    parsed_caption = await c.parseTextEntities(caption, types.TextParseModeHTML())
-    cached_file_id = upload_cache.get(track.tc)
-    if cached_file_id:
-        await c.editInlineMessageMedia(
-            inline_message_id=inline_message_id,
-            input_message_content=types.InputMessageAudio(
-                audio=types.InputFileRemote(cached_file_id),
-                album_cover_thumbnail=types.InputThumbnail(types.InputFileLocal(cover)) if cover else None,
-                title=track.name,
-                performer=track.artist,
-                duration=track.duration,
-                caption=parsed_caption,
-            ),
-        )
-        return None
+    # Get file_id or download
+    file_id, cover = None, None
+    if track.platform.lower() == "spotify":
+        file_id = await db.get_song_file_id(track.tc)
 
-    upload = await c.sendAudio(
-        chat_id=config.LOGGER_ID,
-        audio=types.InputFileLocal(audio_file),
-        album_cover_thumbnail=types.InputThumbnail(types.InputFileLocal(cover)) if cover else None,
-        title=track.name,
-        performer=track.artist,
-        duration=track.duration,
-        caption=caption,
-    )
+    if not file_id:
+        dl = Download(track)
+        result = await dl.process()
+        if isinstance(result, types.Error):
+            error_text = await c.parseTextEntities(result.message, types.TextParseModeHTML())
+            await c.editInlineMessageText(
+                inline_message_id=inline_message_id,
+                input_message_content=types.InputMessageText(error_text)
+            )
+            return
 
-    if isinstance(upload, types.Error):
-        fallback_text = await c.parseTextEntities(upload.message, types.TextParseModeHTML())
-        await c.editInlineMessageText(
-            inline_message_id=inline_message_id,
-            input_message_content=types.InputMessageText(fallback_text),
-        )
-        return None
+        audio_file, cover = result
+        file_id = await db.upload_song_and_get_file_id(audio_file, cover, track)
+        if not file_id:
+            error_text = await c.parseTextEntities("❌ Failed to send audio", types.TextParseModeHTML())
+            await c.editInlineMessageText(
+                inline_message_id=inline_message_id,
+                input_message_content=types.InputMessageText(error_text)
+            )
+            return
 
-    file_id = upload.content.audio.audio.remote.id
-    upload_cache.set(track.tc, file_id)
-    send_audio = await c.editInlineMessageMedia(
+    # Send final audio
+    edit_audio = await c.editInlineMessageMedia(
         inline_message_id=inline_message_id,
         input_message_content=types.InputMessageAudio(
             audio=types.InputFileRemote(file_id),
@@ -166,23 +151,19 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
             title=track.name,
             performer=track.artist,
             duration=track.duration,
-            caption=parsed_caption,
+            caption=parsed_caption
         ),
     )
 
-    if isinstance(send_audio, types.Error):
-        c.logger.error(f"❌ Failed to send audio: {send_audio.message}")
-        fallback_text = await c.parseTextEntities(send_audio.message, types.TextParseModeHTML())
+    if isinstance(edit_audio, types.Error):
+        c.logger.error(f"❌ Failed to send audio: {edit_audio.message}")
+        fallback_text = await c.parseTextEntities(edit_audio.message, types.TextParseModeHTML())
         await c.editInlineMessageText(
             inline_message_id=inline_message_id,
-            input_message_content=types.InputMessageText(fallback_text),
+            input_message_content=types.InputMessageText(fallback_text)
         )
-        return None
-    return None
 
 
-def get_query_id():
-    return str(uuid.uuid4())
 
 async def process_snap_inline(c: Client, message: types.UpdateNewInlineQuery, query: str):
     api = ApiData(query)
@@ -195,7 +176,7 @@ async def process_snap_inline(c: Client, message: types.UpdateNewInlineQuery, qu
             inline_query_id=message.id,
             results=[
                 types.InputInlineQueryResultArticle(
-                    id=get_query_id(),
+                    id=str(uuid.uuid4()),
                     title="❌ Search Failed",
                     description="Something went wrong.",
                     input_message_content=types.InputMessageText(text=parse)
@@ -223,7 +204,7 @@ async def process_snap_inline(c: Client, message: types.UpdateNewInlineQuery, qu
 
         results.append(
             types.InputInlineQueryResultPhoto(
-                id=get_query_id(),
+                id=str(uuid.uuid4()),
                 photo_url=image_url,
                 thumbnail_url=image_url,
                 title=f"Photo {idx + 1}",
@@ -241,7 +222,7 @@ async def process_snap_inline(c: Client, message: types.UpdateNewInlineQuery, qu
 
         results.append(
             types.InputInlineQueryResultVideo(
-                id=get_query_id(),
+                id=str(uuid.uuid4()),
                 video_url=video_url,
                 mime_type="video/mp4",
                 thumbnail_url=thumb_url if thumb_url and re.match("^https?://", thumb_url) else "https://i.pinimg.com/736x/e2/c6/eb/e2c6eb0b48fc00f1304431bfbcacf50e.jpg",
@@ -259,7 +240,7 @@ async def process_snap_inline(c: Client, message: types.UpdateNewInlineQuery, qu
         parse = await c.parseTextEntities("No media found for this query", types.TextParseModeHTML())
         results.append(
             types.InputInlineQueryResultArticle(
-                id=get_query_id(),
+                id=str(uuid.uuid4()),
                 title="No media found",
                 description="Try a different search term",
                 input_message_content=types.InputMessageText(text=parse)
@@ -277,7 +258,7 @@ async def process_snap_inline(c: Client, message: types.UpdateNewInlineQuery, qu
             inline_query_id=message.id,
             results=[
                 types.InputInlineQueryResultArticle(
-                    id=get_query_id(),
+                    id=str(uuid.uuid4()),
                     title="❌ Search Failed",
                     description="Maybe Video size is too big.",
                     input_message_content=types.InputMessageText(text=done.message)

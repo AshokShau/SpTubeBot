@@ -86,7 +86,7 @@ def get_main_menu_keyboard(bot_username: str) -> types.ReplyMarkupInlineKeyboard
 
 
 
-@Client.on_message(filters=Filter.command("start"))
+@Client.on_message(filters=Filter.command(["start", "help"]))
 async def welcome(c: Client, message: types.Message):
     bot_username = c.me.usernames.editable_username
     text = (
@@ -96,6 +96,7 @@ async def welcome(c: Client, message: types.Message):
         f"🔎 Try inline: <code>@{bot_username} your search</code>\n\n"
         "🔐 Privacy: /privacy"
     )
+
     reply = await message.reply_text(
         text,
         parse_mode="html",

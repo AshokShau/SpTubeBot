@@ -4,7 +4,7 @@ from datetime import datetime
 from pytdbot import Client, types
 
 from src import config
-from src.utils import HttpClient
+from src.utils import HttpClient, db
 
 logging.basicConfig(
     level=logging.INFO,
@@ -41,9 +41,11 @@ class Telegram(Client):
         await self._http_client.get_client()
         await super().start()
         self.logger.info(f"Bot started in {datetime.now() - StartTime} seconds.")
+        await db.connect()
 
     async def stop(self) -> None:
         await self._http_client.close_client()
+        await db.close()
         await super().stop()
 
 
