@@ -22,6 +22,7 @@ StartTime = datetime.now()
 
 class Telegram(Client):
     def __init__(self) -> None:
+        self._check_config()
         super().__init__(
             token=config.TOKEN,
             api_id=config.API_ID,
@@ -48,5 +49,22 @@ class Telegram(Client):
         await db.close()
         await super().stop()
 
+    @staticmethod
+    def _check_config() -> None:
+        required_keys = [
+            "TOKEN",
+            "API_ID",
+            "API_HASH",
+            "API_KEY",
+            "API_URL",
+            "MONGO_URI",
+            "LOGGER_ID",
+        ]
+
+        missing = [key for key in required_keys if not getattr(config, key, None)]
+        if missing:
+            raise RuntimeError(
+                f"Missing required config values in .env: {', '.join(missing)}"
+            )
 
 client: Telegram = Telegram()
