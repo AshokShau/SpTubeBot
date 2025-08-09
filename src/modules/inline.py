@@ -20,14 +20,16 @@ async def inline_search(c: Client, message: types.UpdateNewInlineQuery):
     search = await api.get_info() if api.is_valid() else await api.search(limit="15")
     if isinstance(search, types.Error):
         await c.answerInlineQuery(
-            message.id,
+            inline_query_id=message.id,
             results=[
                 types.InputInlineQueryResultArticle(
                     id="error",
                     title="❌ Search Failed",
                     description=search.message or "Could not search Spotify.",
+                    input_message_content=types.InputMessageText(text=search.message or "Error"),
                 )
-            ]
+            ],
+            cache_time=3,
         )
         return None
 
@@ -69,9 +71,21 @@ async def inline_search(c: Client, message: types.UpdateNewInlineQuery):
             )
         )
 
+    if not results:
+        empty_text = await c.parseTextEntities("No results found", types.TextParseModeHTML())
+        results.append(
+            types.InputInlineQueryResultArticle(
+                id=str(uuid.uuid4()),
+                title="No results",
+                description="Try different keywords",
+                input_message_content=types.InputMessageText(text=empty_text),
+            )
+        )
+
     response = await c.answerInlineQuery(
-        message.id,
+        inline_query_id=message.id,
         results=results,
+        cache_time=5,
     )
 
     if isinstance(response, types.Error):
@@ -82,8 +96,9 @@ async def inline_search(c: Client, message: types.UpdateNewInlineQuery):
 @Client.on_updateNewChosenInlineResult()
 async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
     result_id = message.result_id
-    inline_message_id = message.inline_message_id
-    if not inline_message_id:
+    inline_message_id = getattr(message, "inline_message_id", None)
+    if inline_message_id is None:
+        # TDLib sometimes doesn’t include inline_message_id; nothing we can edit
         return None
 
     # Fetch track data
@@ -125,7 +140,7 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
     parsed_caption = await c.parseTextEntities(caption, types.TextParseModeHTML())
     cached_file_id = upload_cache.get(track.tc)
     if cached_file_id:
-        await c.editInlineMessageMedia(
+        send_try = await c.editInlineMessageMedia(
             inline_message_id=inline_message_id,
             input_message_content=types.InputMessageAudio(
                 audio=types.InputFileRemote(cached_file_id),
@@ -136,7 +151,56 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
                 caption=parsed_caption,
             ),
         )
-        return None
+        if not isinstance(send_try, types.Error):
+            return None
+        # Fallback using saved message reference if file_id failed
+        ref = getattr(upload_cache, "get_message_ref", lambda *_: None)(track.tc)
+        if ref:
+            # Try using stored chat/message IDs first
+            chat_id = ref.get("chat_id")
+            message_id = ref.get("message_id")
+            if chat_id and message_id:
+                dl_msg = await c.getMessage(chat_id, message_id)
+                if not isinstance(dl_msg, types.Error):
+                    try_file_id = getattr(dl_msg.content.audio.audio.remote, "id", None)
+                    if try_file_id:
+                        send_try2 = await c.editInlineMessageMedia(
+                            inline_message_id=inline_message_id,
+                            input_message_content=types.InputMessageAudio(
+                                audio=types.InputFileRemote(try_file_id),
+                                album_cover_thumbnail=types.InputThumbnail(types.InputFileLocal(cover)) if cover else None,
+                                title=track.name,
+                                performer=track.artist,
+                                duration=track.duration,
+                                caption=parsed_caption,
+                            ),
+                        )
+                        if not isinstance(send_try2, types.Error):
+                            upload_cache.set(track.tc, try_file_id)
+                            return None
+            # If only message link is available, resolve it
+            msg_link = ref.get("message_link")
+            if msg_link:
+                info = await c.getMessageLinkInfo(msg_link)
+                if not isinstance(info, types.Error) and info.message is not None:
+                    dl_msg = await c.getMessage(info.chat_id, info.message.id)
+                    if not isinstance(dl_msg, types.Error):
+                        try_file_id = getattr(dl_msg.content.audio.audio.remote, "id", None)
+                        if try_file_id:
+                            send_try3 = await c.editInlineMessageMedia(
+                                inline_message_id=inline_message_id,
+                                input_message_content=types.InputMessageAudio(
+                                    audio=types.InputFileRemote(try_file_id),
+                                    album_cover_thumbnail=types.InputThumbnail(types.InputFileLocal(cover)) if cover else None,
+                                    title=track.name,
+                                    performer=track.artist,
+                                    duration=track.duration,
+                                    caption=parsed_caption,
+                                ),
+                            )
+                            if not isinstance(send_try3, types.Error):
+                                upload_cache.set(track.tc, try_file_id, chat_id=info.chat_id, message_id=info.message.id, message_link=msg_link)
+                                return None
 
     upload = await c.sendAudio(
         chat_id=config.LOGGER_ID,
@@ -157,7 +221,26 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
         return None
 
     file_id = upload.content.audio.audio.remote.id
-    upload_cache.set(track.tc, file_id)
+    chat_id = getattr(upload, "chat_id", None) or config.LOGGER_ID
+    message_id = getattr(upload, "id", None) or getattr(upload, "message_id", None)
+    message_link = None
+    # Prefer official API to generate message link; fallback to manual if needed
+    try:
+        if chat_id and message_id:
+            link_info = await c.getMessageLink(chat_id, message_id)
+            if not isinstance(link_info, types.Error):
+                message_link = getattr(link_info, "link", None)
+    except Exception:
+        message_link = None
+    if not message_link:
+        try:
+            if isinstance(chat_id, int) and str(chat_id).startswith("-100") and message_id:
+                internal_id = str(chat_id)[4:]
+                message_link = f"https://t.me/c/{internal_id}/{message_id}"
+        except Exception:
+            message_link = None
+
+    upload_cache.set(track.tc, file_id, message_link=message_link, chat_id=chat_id, message_id=message_id)
     send_audio = await c.editInlineMessageMedia(
         inline_message_id=inline_message_id,
         input_message_content=types.InputMessageAudio(
