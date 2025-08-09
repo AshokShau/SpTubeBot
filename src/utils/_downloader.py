@@ -41,6 +41,7 @@ class Download:
         self.track = track
         self.downloads_dir = Path(config.DOWNLOAD_PATH)
         self.downloads_dir.mkdir(parents=True, exist_ok=True, mode=0o755)
+        self.output_file = self.downloads_dir / f"{self._sanitize_filename(self.track.name)}.ogg"
 
     async def process(self) -> Union[Tuple[str, Optional[str]], types.Error]:
         """Process the track download with optimized flow."""
@@ -49,12 +50,10 @@ class Download:
                 return types.Error(message="Missing CDN URL")
 
             # Check for existing files first
-            output_file = self.downloads_dir / f"{self._sanitize_filename(self.track.name)}.ogg"
             cover_path = self.downloads_dir / f"{self.track.tc}_cover.jpg"
-
-            if output_file.exists():
-                logger.debug(f"Using cached file: {output_file}")
-                return str(output_file), str(cover_path) if cover_path.exists() else None
+            if self.output_file.exists():
+                logger.debug(f"Using cached file: {self.output_file}")
+                return str(self.output_file), str(cover_path) if cover_path.exists() else None
 
             # Process based on platform
             if self.track.platform in ["youtube", "soundcloud"]:
@@ -79,8 +78,7 @@ class Download:
     async def process_standard(self) -> Tuple[str, Optional[str]]:
         """Optimized standard processing flow."""
         start_time = time.monotonic()
-        output_file = self.downloads_dir / f"{self.track.tc}.ogg"
-
+        output_file = self.output_file
         if not self.track.key:
             raise MissingKeyError("Missing CDN key")
 
