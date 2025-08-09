@@ -193,7 +193,19 @@ async def handle_help_callback(_: Client, message: types.UpdateNewCallbackQuery)
         "threads": (
             "💡<b>Threads Downloader</b>\n\n"
             "Download media from Threads:\n\n"
-            "👉 <code>https://www.threads.com/@camycavero/post/DM0FquaM2At?xmt=AQF0u_6ebeMHEjWCw0cm0Li4i8fI3INIU7YeSMffM9DmDw</code>"
+            "👉 <code>https://www.threads.com/@camycavero/post/DM0FquaM2At?xmt=AQF0u_6ebeMHEjWCw0cm0Li4i8fI3INIU7YeSMffM9DmDw</code>\n"
+        ),
+        "reddit": (
+            "💡<b>Reddit Downloader</b>\n\n"
+            "Download media from Reddit:\n\n"
+            "👉 <code>https://www.reddit.com/r/tollywood/comments/1mld609/what_is_your_honest_unfiltered_opinion_on_mahesh/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button</code>\n"
+            "👉 <code>https://www.reddit.com/r/Damnthatsinteresting/comments/1mlfgzv/when_cat_meets_cat/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button</code>\n"
+            "👉 <code>https://www.reddit.com/r/Indian_flex/comments/1mlez7j/tough_life/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button</code>\n"
+        ),
+        "twitch": (
+            "💡<b>Twitch Clip Downloader</b>\n\n"
+            "Download media from Twitch:\n\n"
+            "👉 <code>https://www.twitch.tv/tarik/clip/CheerfulHonorableBibimbapHumbleLife-cdCV_zL45i1p2Kh6</code>\n"
         ),
     }
 

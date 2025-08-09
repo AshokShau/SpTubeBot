@@ -72,6 +72,16 @@ def get_main_menu_keyboard(bot_username: str) -> types.ReplyMarkupInlineKeyboard
                 type=types.InlineKeyboardButtonTypeCallback("help_threads".encode())
             )
         ],
+        [
+            types.InlineKeyboardButton(
+                text="Reddit",
+                type=types.InlineKeyboardButtonTypeCallback("help_reddit".encode())
+            ),
+            types.InlineKeyboardButton(
+                text="Twitch",
+                type=types.InlineKeyboardButtonTypeCallback("help_twitch".encode())
+            )
+        ]
     ])
 
 

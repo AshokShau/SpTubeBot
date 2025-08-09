@@ -105,10 +105,14 @@ class ApiData:
             r"https?://(?:www\.|old\.)?reddit\.com/r/[\w]+/comments/[\w]+(?:/[^\s]*)?|https?://redd\.it/[\w]+",
             re.IGNORECASE
         )
+        twitch_clip_regex = re.compile(
+            r"https?://(?:clips\.twitch\.tv/|(?:www\.)?twitch\.tv/[^/]+/clip/)([\w-]+(?:-\w+)*)",
+            re.IGNORECASE
+        )
 
         return any(
             regex.search(self.query)
-            for regex in (insta_regex, pin_regex, fb_watch_regex, fb_video_regex, tiktok_regex, x_regex, threads_redex, reddit_regex)
+            for regex in (insta_regex, pin_regex, fb_watch_regex, fb_video_regex, tiktok_regex, x_regex, threads_redex, reddit_regex, twitch_clip_regex)
         )
 
     async def get_info(self) -> Union[types.Error, PlatformTracks]:
