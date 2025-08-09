@@ -21,3 +21,8 @@ API_KEY = getenv("API_KEY")
 API_URL = getenv("API_URL")
 DOWNLOAD_PATH = getenv("DOWNLOAD_PATH", "database")
 LOGGER_ID = get_env_int("LOGGER_ID", -1002434755494)
+
+# MongoDB configuration
+MONGO_URI: Optional[str] = getenv("MONGO_URI")
+MONGO_DB_NAME: str = getenv("MONGO_DB_NAME", "sptubebot")
+MONGO_UPLOADS_COLL: str = getenv("MONGO_UPLOADS_COLL", "uploads_cache")
