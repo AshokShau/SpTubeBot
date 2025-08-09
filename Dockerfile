@@ -17,7 +17,7 @@ RUN pip install --no-cache-dir uv
 
 COPY . .
 
-RUN chmod +x cover_gen.sh
+RUN chmod +x /app/cover_gen.sh
 
 RUN uv pip install -e . --system
 
