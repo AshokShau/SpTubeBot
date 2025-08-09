@@ -12,6 +12,7 @@ dependencies = [
      "requests~=2.32.4",
      "tdjson~=1.8.51",
      "ujson~=5.10.0",
+     "pymongo>=4.9.1",
 ]
 
 [project.license]

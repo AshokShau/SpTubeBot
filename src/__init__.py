@@ -32,7 +32,7 @@ class Telegram(Client):
             plugins=types.plugins.Plugins(folder="src/modules"),
             files_directory="",
             database_encryption_key="",
-            options={"ignore_background_updates": True},
+            options={"ignore_background_updates": False},
         )
 
         self._http_client = HttpClient()

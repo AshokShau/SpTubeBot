@@ -108,6 +108,12 @@ async def welcome(c: Client, message: types.Message):
 
 
 
+@Client.on_message(filters=Filter.command("help"))
+async def help_cmd(c: Client, message: types.Message):
+    # Reuse the same menu as /start for consistency
+    await welcome(c, message)
+
+
 @Client.on_message(filters=Filter.command("privacy"))
 async def privacy_handler(_: Client, message: types.Message):
     await message.reply_text(
