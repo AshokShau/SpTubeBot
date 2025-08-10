@@ -39,7 +39,7 @@ class InvalidHexKeyError(Exception):
 class Download:
     def __init__(self, track: Optional[TrackInfo]):
         self.track = track
-        self.downloads_dir = Path(config.DOWNLOAD_PATH)
+        self.downloads_dir = config.DOWNLOAD_PATH
         self.downloads_dir.mkdir(parents=True, exist_ok=True, mode=0o755)
         self.output_file = self.downloads_dir / f"{self._sanitize_filename(self.track.name)}.ogg"
 
@@ -338,7 +338,7 @@ class Download:
 
 async def download_playlist_zip(playlist: PlatformTracks) -> Optional[str]:
     """Optimized playlist download with parallel processing."""
-    downloads_dir = Path(config.DOWNLOAD_PATH)
+    downloads_dir = config.DOWNLOAD_PATH
     zip_path = downloads_dir / f"playlist_{int(time.time())}.zip"
     temp_dir = downloads_dir / f"tmp_{uuid.uuid4()}"
     temp_dir.mkdir(parents=True, exist_ok=True)

@@ -12,6 +12,7 @@ dependencies = [
      "python-dotenv>=1.1.1",
      "tdjson~=1.8.51",
      "ujson~=5.10.0",
+     "yt-dlp>=2025.7.21",
 ]
 
 [project.license]
