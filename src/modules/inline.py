@@ -134,13 +134,13 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
 
         audio_file, cover = result
         file_id = await db.upload_song_and_get_file_id(audio_file, cover, track)
-        if not file_id:
-            error_text = await c.parseTextEntities("❌ Failed to send audio", types.TextParseModeHTML())
-            await c.editInlineMessageText(
-                inline_message_id=inline_message_id,
-                input_message_content=types.InputMessageText(error_text)
-            )
-            return
+    if not file_id:
+        error_text = await c.parseTextEntities("❌ Failed to send audio", types.TextParseModeHTML())
+        await c.editInlineMessageText(
+            inline_message_id=inline_message_id,
+            input_message_content=types.InputMessageText(error_text)
+        )
+        return
 
     # Send final audio
     edit_audio = await c.editInlineMessageMedia(
@@ -191,29 +191,30 @@ async def process_snap_inline(c: Client, message: types.UpdateNewInlineQuery, qu
         [
             [
                 types.InlineKeyboardButton(
-                    text=f"Search Again",
-                    type=types.InlineKeyboardButtonTypeSwitchInline(query=query, target_chat=types.TargetChatCurrent())
-                ),
-            ],
+                    text="Search Again",
+                    type=types.InlineKeyboardButtonTypeSwitchInline(
+                        query=query, target_chat=types.TargetChatCurrent()
+                    ),
+                )
+            ]
         ]
     )
 
-    for idx, image_url in enumerate(api_data.image or []):
-        if not image_url or not re.match("^https?://", image_url):
-            continue
-
-        results.append(
-            types.InputInlineQueryResultPhoto(
-                id=str(uuid.uuid4()),
-                photo_url=image_url,
-                thumbnail_url=image_url,
-                title=f"Photo {idx + 1}",
-                description=f"Image result #{idx + 1}",
-                input_message_content = types.InputMessagePhoto(photo=types.InputFileRemote(image_url)),
-                reply_markup=reply_markup
-            )
+    results.extend(
+        types.InputInlineQueryResultPhoto(
+            id=str(uuid.uuid4()),
+            photo_url=image_url,
+            thumbnail_url=image_url,
+            title=f"Photo {idx + 1}",
+            description=f"Image result #{idx + 1}",
+            input_message_content=types.InputMessagePhoto(
+                photo=types.InputFileRemote(image_url)
+            ),
+            reply_markup=reply_markup,
         )
-
+        for idx, image_url in enumerate(api_data.image or [])
+        if image_url and re.match("^https?://", image_url)
+    )
     for idx, video_data in enumerate(api_data.video or []):
         video_url = getattr(video_data, 'video', None)
         thumb_url = getattr(video_data, 'thumbnail', '')
@@ -236,7 +237,7 @@ async def process_snap_inline(c: Client, message: types.UpdateNewInlineQuery, qu
             )
         )
 
-    if len(results) == 0:
+    if not results:
         parse = await c.parseTextEntities("No media found for this query", types.TextParseModeHTML())
         results.append(
             types.InputInlineQueryResultArticle(

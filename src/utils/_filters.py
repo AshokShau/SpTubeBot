@@ -126,9 +126,6 @@ class Filter:
             if ApiData(text).is_valid():
                 return True
 
-            if re.match("^https?://", text):
-                return False
-
-            return chat_id > 0
+            return False if re.match("^https?://", text) else chat_id > 0
 
         return filters.create(filter_func)

@@ -61,12 +61,22 @@ async def callback_query(c: Client, message: types.UpdateNewCallbackQuery):
         c.logger.warning(f"❌ Failed to edit message: {msg.message}")
         return
 
-    reply_markup = types.ReplyMarkupInlineKeyboard([[
-        types.InlineKeyboardButton(
-            text=(track.name[:20] + '...' if len(track.name) > 20 else track.name),
-            type=types.InlineKeyboardButtonTypeUrl("https://t.me/FallenProjects"),
-        ),
-    ]])
+    reply_markup = types.ReplyMarkupInlineKeyboard(
+        [
+            [
+                types.InlineKeyboardButton(
+                    text=(
+                        f'{track.name[:20]}...'
+                        if len(track.name) > 20
+                        else track.name
+                    ),
+                    type=types.InlineKeyboardButtonTypeUrl(
+                        "https://t.me/FallenProjects"
+                    ),
+                )
+            ]
+        ]
+    )
     status_text = f"<b>🎵 {track.name}</b>\n👤 {track.artist} | 📀 {track.album}\n⏱️ {track.duration}s"
     parse = await c.parseTextEntities(status_text, types.TextParseModeHTML())
 
@@ -92,32 +102,30 @@ async def callback_query(c: Client, message: types.UpdateNewCallbackQuery):
                 await msg.edit_text("❌ Failed to send song to database.")
                 return
             audio = types.InputFileRemote(file_id)
-        else:
-            # Handle t.me link download for YouTube
-            if re.match(r"https?://t\.me/([^/]+)/(\d+)", audio_file):
-                info = await c.getMessageLinkInfo(audio_file)
-                if isinstance(info, types.Error) or not info.message:
-                    c.logger.error(f"❌ Failed to resolve link: {audio_file}")
-                    return
+        elif re.match(r"https?://t\.me/([^/]+)/(\d+)", audio_file):
+            info = await c.getMessageLinkInfo(audio_file)
+            if isinstance(info, types.Error) or not info.message:
+                c.logger.error(f"❌ Failed to resolve link: {audio_file}")
+                return
 
-                public_msg = await c.getMessage(info.chat_id, info.message.id)
-                if isinstance(public_msg, types.Error):
-                    c.logger.error(f"❌ Failed to fetch message: {public_msg.message}")
-                    await msg.edit_text(f"❌ Failed to fetch message: {public_msg.message}")
-                    return
+            public_msg = await c.getMessage(info.chat_id, info.message.id)
+            if isinstance(public_msg, types.Error):
+                c.logger.error(f"❌ Failed to fetch message: {public_msg.message}")
+                await msg.edit_text(f"❌ Failed to fetch message: {public_msg.message}")
+                return
 
-                if isinstance(public_msg.content, types.MessageAudio):
-                    audio = types.InputFileRemote(public_msg.content.audio.audio.remote.id)
-                elif isinstance(public_msg.content, types.MessageDocument):
-                    audio = types.InputFileRemote(public_msg.content.document.document.remote.id)
-                elif isinstance(public_msg.content, types.MessageVideo):
-                    audio = types.InputFileRemote(public_msg.content.video.video.remote.id)
-                else:
-                    c.logger.error(f"❌ No audio file in t.me link: {audio_file}")
-                    await msg.edit_text("⚠️ Audio file not found in t.me link")
-                    return
+            if isinstance(public_msg.content, types.MessageAudio):
+                audio = types.InputFileRemote(public_msg.content.audio.audio.remote.id)
+            elif isinstance(public_msg.content, types.MessageDocument):
+                audio = types.InputFileRemote(public_msg.content.document.document.remote.id)
+            elif isinstance(public_msg.content, types.MessageVideo):
+                audio = types.InputFileRemote(public_msg.content.video.video.remote.id)
             else:
-                audio = types.InputFileLocal(audio_file)
+                c.logger.error(f"❌ No audio file in t.me link: {audio_file}")
+                await msg.edit_text("⚠️ Audio file not found in t.me link")
+                return
+        else:
+            audio = types.InputFileLocal(audio_file)
 
     reply = await c.editMessageMedia(
         chat_id=message.chat_id,

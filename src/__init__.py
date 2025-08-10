@@ -61,8 +61,9 @@ class Telegram(Client):
             "LOGGER_ID",
         ]
 
-        missing = [key for key in required_keys if not getattr(config, key, None)]
-        if missing:
+        if missing := [
+            key for key in required_keys if not getattr(config, key, None)
+        ]:
             raise RuntimeError(
                 f"Missing required config values in .env: {', '.join(missing)}"
             )

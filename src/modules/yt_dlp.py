@@ -59,7 +59,7 @@ async def get_working_proxy():
                 r = await pclient.get("https://httpbin.org/ip")
                 if r.status_code == 200:
                     return proxy
-        except:
+        except Exception:
             continue
     return None
 
