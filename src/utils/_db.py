@@ -1,3 +1,4 @@
+import os
 from typing import Optional
 from pymongo import AsyncMongoClient
 from pytdbot import types
@@ -96,6 +97,10 @@ class MongoDB:
             return None
 
         await self.store_song_link(track.tc, public_link.link)
+        try:
+            os.remove(file_path)
+        except Exception as e:
+            client.logger.warning(f"❌ Failed to remove file: {e}")
         return upload.content.audio.audio.remote.id
 
     async def close(self) -> None:
