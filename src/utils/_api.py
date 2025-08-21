@@ -1,25 +1,29 @@
 import re
 import urllib.parse
-from typing import Dict, Union, Optional
+from typing import Dict, Optional, Union, Type, TypeVar
 import httpx
 from pytdbot import types
-from concurrent.futures import ThreadPoolExecutor
 from src import config
 from src.utils._dataclass import PlatformTracks, TrackInfo, MusicTrack, APIResponse
 
-# Constants
-DOWNLOAD_TIMEOUT = 300.0  # Total timeout in seconds
-CONNECT_TIMEOUT = 30.0  # Connect timeout in seconds
+# === Constants ===
+DOWNLOAD_TIMEOUT = 300.0
+CONNECT_TIMEOUT = 30.0
 DEFAULT_LIMIT = "10"
 MAX_QUERY_LENGTH = 500
-MAX_URL_LENGTH = 5000
+MAX_URL_LENGTH = 1000
+
 HEADER_ACCEPT = "Accept"
 HEADER_API_KEY = "X-API-Key"
 MIME_APPLICATION = "application/json"
+
 MAX_CONCURRENT_DOWNLOADS = 5
 _client: Optional[httpx.AsyncClient] = None
-_executor = ThreadPoolExecutor(max_workers=4)
 
+
+T = TypeVar("T")
+
+# === URL Regex Patterns ===
 URL_PATTERNS = {
     "spotify": re.compile(
         r'^(https?://)?([a-z0-9-]+\.)*spotify\.com/(track|playlist|album|artist)/[a-zA-Z0-9]+(\?.*)?$'),
@@ -30,17 +34,25 @@ URL_PATTERNS = {
         r'^(https?://)?([a-z0-9-]+\.)?apple\.com/[a-z]{2}/(album|playlist|song)/[^/]+/(pl\.[a-zA-Z0-9]+|\d+)(\?i=\d+)?(\?.*)?$')
 }
 
+SAVE_SNAP_PATTERNS = [
+    re.compile(r"(?i)https?://(?:www\.)?(instagram\.com|instagr\.am)/(reel|stories|p|tv)/[^\s/?]+"),
+    re.compile(r"(?i)https?://(?:[a-z]+\.)?(pinterest\.com|pin\.it)/[^\s]+"),
+    re.compile(r"(?i)https?://(?:www\.)?fb\.watch/[^\s/?]+"),
+    re.compile(r"(?i)https?://(?:www\.)?facebook\.com/.+/videos/\d+"),
+    re.compile(r"https?://(?:www\.|m\.)?(?:vt\.)?tiktok\.com/(?:@[\w.-]+/video/\d+|v/\d+\.html|t/[\w]+|[\w]+)", re.I),
+    re.compile(r"https?://(?:www\.)?(?:x|twitter)\.com/[^\s]+", re.I),
+    re.compile(r"https?://(?:www\.)?threads\.(?:com|net)/@[\w.-]+/post/[\w-]+(?:\?[\w=&%-]+)?", re.I),
+    re.compile(r"https?://(?:www\.|old\.)?reddit\.com/r/[\w]+/comments/[\w]+(?:/[^\s]*)?|https?://redd\.it/[\w]+", re.I),
+    re.compile(r"https?://(?:clips\.twitch\.tv/|(?:www\.)?twitch\.tv/[^/]+/clip/)([\w-]+(?:-\w+)*)", re.I),
+]
+
 
 class HttpClient:
+    """Singleton Async HTTP client."""
     @staticmethod
     async def get_client() -> httpx.AsyncClient:
         global _client
         if _client is None or _client.is_closed:
-            limits = httpx.Limits(
-                max_connections=MAX_CONCURRENT_DOWNLOADS,
-                max_keepalive_connections=MAX_CONCURRENT_DOWNLOADS
-            )
-
             _client = httpx.AsyncClient(
                 timeout=httpx.Timeout(
                     connect=CONNECT_TIMEOUT,
@@ -48,7 +60,10 @@ class HttpClient:
                     write=DOWNLOAD_TIMEOUT,
                     pool=None
                 ),
-                limits=limits,
+                limits=httpx.Limits(
+                    max_connections=MAX_CONCURRENT_DOWNLOADS,
+                    max_keepalive_connections=MAX_CONCURRENT_DOWNLOADS
+                ),
                 follow_redirects=True,
                 trust_env=True
             )
@@ -57,7 +72,7 @@ class HttpClient:
     @staticmethod
     async def close_client():
         global _client
-        if _client is not None:
+        if _client:
             await _client.aclose()
             _client = None
 
@@ -65,164 +80,87 @@ class HttpClient:
 class ApiData:
     def __init__(self, query: str):
         self.api_url = config.API_URL
-        self.query = self._sanitize_input(query) if query else ""
+        self.query = self._sanitize_input(query.strip()) if query else ""
 
+    # --- Validation ---
     def is_valid(self) -> bool:
-        raw_url = self.query
-        if not raw_url or len(raw_url) > MAX_URL_LENGTH:
+        if not self.query or len(self.query) > MAX_URL_LENGTH:
             return False
-
-        if not re.match("^https?://", raw_url):
+        if not re.match("^https?://", self.query.strip()):
             return False
 
         try:
-            parsed = urllib.parse.urlparse(raw_url)
-            if not all([parsed.scheme, parsed.netloc]):
+            parsed = urllib.parse.urlparse(self.query)
+            if not (parsed.scheme and parsed.netloc):
                 return False
         except ValueError:
             return False
-
-        return any(pattern.search(raw_url) for pattern in URL_PATTERNS.values())
+        return any(p.search(self.query) for p in URL_PATTERNS.values())
 
     def extract_save_snap_url(self) -> Optional[str]:
-        if not self.query:
-            return None
-
-        regexes = [
-            re.compile(r"(?i)https?://(?:www\.)?(instagram\.com|instagr\.am)/(reel|stories|p|tv)/[^\s/?]+"),
-            re.compile(r"(?i)https?://(?:[a-z]+\.)?(pinterest\.com|pin\.it)/[^\s]+"),
-            re.compile(r"(?i)https?://(?:www\.)?fb\.watch/[^\s/?]+"),
-            re.compile(r"(?i)https?://(?:www\.)?facebook\.com/.+/videos/\d+"),
-            re.compile(r"https?://(?:www\.|m\.)?(?:vt\.)?tiktok\.com/(?:@[\w.-]+/video/\d+|v/\d+\.html|t/[\w]+|[\w]+)",
-                       re.IGNORECASE),
-            re.compile(r"https?://(?:www\.)?(?:x|twitter)\.com/[^\s]+", re.IGNORECASE),
-            re.compile(r"https?://(?:www\.)?threads\.(?:com|net)/@[\w.-]+/post/[\w-]+(?:\?[\w=&%-]+)?", re.IGNORECASE),
-            re.compile(
-                r"https?://(?:www\.|old\.)?reddit\.com/r/[\w]+/comments/[\w]+(?:/[^\s]*)?|https?://redd\.it/[\w]+",
-                re.IGNORECASE),
-            re.compile(r"https?://(?:clips\.twitch\.tv/|(?:www\.)?twitch\.tv/[^/]+/clip/)([\w-]+(?:-\w+)*)",
-                       re.IGNORECASE),
-        ]
-
-        for regex in regexes:
-            if match := regex.search(self.query.strip()):
+        for regex in SAVE_SNAP_PATTERNS:
+            if match := regex.search(self.query):
                 return match.group(0)
-
         return None
 
     def is_save_snap_url(self) -> bool:
         return bool(self.extract_save_snap_url())
 
+    # --- API Methods ---
     async def get_info(self) -> Union[types.Error, PlatformTracks]:
         if not self.is_valid():
             return types.Error(message="Url is not valid")
-        return await self._fetch_data(self.query)
-
-    async def _fetch_data(self, raw_url: str) -> Union[types.Error, PlatformTracks]:
-        endpoint = f"{self.api_url}/get_url?url={urllib.parse.quote(raw_url)}"
-        headers = self._get_headers()
-        client = await HttpClient.get_client()
-
-        try:
-            response = await client.get(
-                endpoint,
-                headers=headers
-            )
-            response.raise_for_status()
-            raw_data = response.json()
-            results = [MusicTrack(**track) for track in raw_data.get("results", [])]
-            return PlatformTracks(results=results)
-        except httpx.HTTPStatusError as e:
-            return types.Error(message=f"Request failed with status: {e.response.status_code}")
-        except httpx.RequestError as e:
-            return types.Error(message=f"HTTP request failed: {e}")
-        except (ValueError, TypeError) as e:
-            return types.Error(message=f"Failed to parse JSON response: {e}")
-        except Exception as e:
-            return types.Error(message=f"Unexpected error: {e}")
+        return await self._request_json(
+            f"{self.api_url}/get_url?url={urllib.parse.quote(self.query)}",
+            PlatformTracks, list_key="results", item_model=MusicTrack
+        )
 
     async def search(self, limit: str = DEFAULT_LIMIT) -> Union[types.Error, PlatformTracks]:
-        endpoint = (
-            f"{self.api_url}/search_track/{urllib.parse.quote(self.query)}"
-            f"?lim={urllib.parse.quote(limit)}"
+        return await self._request_json(
+            f"{self.api_url}/search/{urllib.parse.quote(self.query)}?lim={urllib.parse.quote(limit)}",
+            PlatformTracks, list_key="results", item_model=MusicTrack
         )
-        headers = self._get_headers()
-        client = await HttpClient.get_client()
 
-        try:
-            response = await client.get(endpoint,headers=headers)
-            response.raise_for_status()
-            raw_data = response.json()
-            results = [MusicTrack(**track) for track in raw_data.get("results", [])]
-            return PlatformTracks(results=results)
-        except httpx.HTTPStatusError as e:
-            return types.Error(message=f"Request failed with status: {e.response.status_code}")
-        except httpx.RequestError as e:
-            return types.Error(message=f"HTTP request failed: {e}")
-        except (ValueError, TypeError) as e:
-            return types.Error(message=f"Failed to parse JSON response: {e}")
-        except Exception as e:
-            return types.Error(message=f"Unexpected error: {e}")
-
-    async def get_track(self, video: bool = False, quality: Optional[str] = None) -> Union[types.Error, TrackInfo]:
-        track_id = self.query
-        if not track_id:
-            return types.Error(message="Empty track ID")
-
-        # video and quality parameters are only valid when you pass yt link or id
-        endpoint = f"{self.api_url}/get_track?id={urllib.parse.quote(track_id)}"
-        if quality and video:
-            endpoint += f"&quality={urllib.parse.quote(quality)}&video=true"
-
-        headers = self._get_headers()
-        client = await HttpClient.get_client()
-
-        try:
-            response = await client.get(endpoint, headers=headers)
-            response.raise_for_status()
-            raw_data = response.json()
-            return TrackInfo(**raw_data)
-        except httpx.HTTPStatusError as e:
-            return types.Error(message=f"Request failed with status: {e.response.status_code}")
-        except httpx.RequestError as e:
-            return types.Error(message=f"HTTP request failed: {e}")
-        except (ValueError, TypeError) as e:
-            return types.Error(message=f"Failed to parse JSON response: {e}")
-        except Exception as e:
-            return types.Error(message=f"Unexpected error: {e}")
+    async def get_track(self) -> Union[types.Error, TrackInfo]:
+        endpoint = f"{self.api_url}/track?url={urllib.parse.quote(self.query)}"
+        return await self._request_json(endpoint, TrackInfo)
 
     async def get_snap(self) -> Union[types.Error, APIResponse]:
         if not self.is_save_snap_url():
             return types.Error(message="Url is not valid")
+        return await self._request_json(
+            f"{self.api_url}/snap?url={urllib.parse.quote(self.query)}",
+            APIResponse
+        )
 
-        endpoint = f"{self.api_url}/snap?url={urllib.parse.quote(self.query)}"
-        headers = self._get_headers()
+    # --- Helpers ---
+    async def _request_json(
+        self, endpoint: str, model: Type[T],
+        list_key: Optional[str] = None, item_model: Optional[Type] = None
+    ) -> Union[types.Error, T]:
+        """Generic API request -> model parser"""
         client = await HttpClient.get_client()
-
         try:
-            response = await client.get(
-                endpoint,
-                headers=headers
-            )
+            response = await client.get(endpoint, headers=self._get_headers())
             response.raise_for_status()
-            raw_data = response.json()
-            return APIResponse(**raw_data)
+            data = response.json()
+            if list_key and item_model:
+                items = [item_model(**x) for x in data.get(list_key, [])]
+                return model(results=items)
+            return model(**data)
         except httpx.HTTPStatusError as e:
-            return types.Error(message=f"Request failed with status: {e.response.status_code}")
+            return types.Error(message=f"Request failed: {e.response.status_code}")
         except httpx.RequestError as e:
-            return types.Error(message=f"HTTP request failed: {e}")
+            return types.Error(message=f"HTTP error: {e}")
         except (ValueError, TypeError) as e:
-            return types.Error(message=f"Failed to parse JSON response: {e}")
+            return types.Error(message=f"Invalid JSON: {e}")
         except Exception as e:
             return types.Error(message=f"Unexpected error: {e}")
 
     @staticmethod
     def _get_headers() -> Dict[str, str]:
-        return {
-            HEADER_API_KEY: config.API_KEY,
-            HEADER_ACCEPT: MIME_APPLICATION
-        }
+        return {HEADER_API_KEY: config.API_KEY, HEADER_ACCEPT: MIME_APPLICATION}
 
     @staticmethod
     def _sanitize_input(input_str: str) -> str:
-        return input_str[:MAX_QUERY_LENGTH] if len(input_str) > MAX_QUERY_LENGTH else input_str
+        return input_str[:MAX_QUERY_LENGTH]

@@ -8,11 +8,12 @@ dependencies = [
      "orjson>=3.11.2",
      "pycryptodome>=3.23.0",
      "pydantic>=2.11.7",
-     "pymongo>=4.14.0",
+     "pymongo>=4.14.1",
      "pytdbot>=0.9.5",
      "python-dotenv>=1.1.1",
      "tdjson>=1.8.51",
-     "ujson~=5.10.0",
+     "ujson~=5.11.0",
+     "yt-dlp>=2025.8.20",
 ]
 
 [project.license]
