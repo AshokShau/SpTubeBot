@@ -64,7 +64,9 @@ async def inline_search(c: Client, message: types.UpdateNewInlineQuery):
                 id=shortener.encode_url(track.url),
                 title=f"{track.name} - {track.artist}",
                 description=f"{track.name} by {track.artist} ({track.year})",
-                thumbnail_url=track.cover_small,
+                thumbnail_url=track.cover,
+                thumbnail_width=640,
+                thumbnail_height=640,
                 input_message_content=types.InputMessageText(parse),
                 reply_markup=reply_markup,
             )
