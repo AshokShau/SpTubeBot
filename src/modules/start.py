@@ -4,7 +4,7 @@ from datetime import datetime
 from pytdbot import Client, types
 
 from src import StartTime
-from src.utils import Filter
+from src.utils import Filter, ApiData
 
 from ._fsub import fsub
 from ._utils import StartMessage
@@ -142,3 +142,19 @@ async def ping_cmd(client: Client, message: types.Message) -> None:
         client.logger.warning(f"Error sending message: {done}")
     return None
 
+@Client.on_message(filters=Filter.command("math"))
+async def math_cmd(client: Client, message: types.Message):
+    parts = message.text.split(" ", 1)
+    if len(parts) < 2:
+        await message.reply_text("Please provide a search query.")
+        return None
+
+    query = parts[1]
+    client.logger.info(f"Processing math query: {query}")
+    result = await ApiData(query).evaluate()
+    if isinstance(result, types.Error):
+        await message.reply_text(result.message or "An error occurred.")
+        return None
+
+    await message.reply_text(result)
+    return None

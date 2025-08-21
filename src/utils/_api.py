@@ -18,8 +18,6 @@ HEADER_API_KEY = "X-API-Key"
 MIME_APPLICATION = "application/json"
 
 MAX_CONCURRENT_DOWNLOADS = 5
-_client: Optional[httpx.AsyncClient] = None
-
 
 T = TypeVar("T")
 
@@ -46,7 +44,7 @@ SAVE_SNAP_PATTERNS = [
     re.compile(r"https?://(?:clips\.twitch\.tv/|(?:www\.)?twitch\.tv/[^/]+/clip/)([\w-]+(?:-\w+)*)", re.I),
 ]
 
-
+_client: Optional[httpx.AsyncClient] = None
 class HttpClient:
     """Singleton Async HTTP client."""
     @staticmethod
@@ -132,6 +130,25 @@ class ApiData:
             f"{self.api_url}/snap?url={urllib.parse.quote(self.query)}",
             APIResponse
         )
+
+    async def evaluate(self) -> Union[str, "types.Error"]:
+        query = urllib.parse.quote(self.query)
+        endpoint = f"https://evaluate-expression.p.rapidapi.com/?expression={query}"
+        client = await HttpClient.get_client()
+        headers = {
+            "x-rapidapi-host": "evaluate-expression.p.rapidapi.com",
+            "x-rapidapi-key": "cf9e67ea99mshecc7e1ddb8e93d1p1b9e04jsn3f1bb9103c3f",
+        }
+        try:
+            response = await client.get(endpoint, headers=headers)
+            response.raise_for_status()
+            body = response.text.strip()
+            if not body:
+                return types.Error(message="Invalid Math Expression")
+
+            return body
+        except Exception as e:
+            return types.Error(message=f"Evaluation failed: {e}")
 
     # --- Helpers ---
     async def _request_json(
