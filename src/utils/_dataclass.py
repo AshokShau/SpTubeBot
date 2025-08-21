@@ -22,7 +22,6 @@ class MusicTrack(BaseModel):
     url: str
     year: str
     cover: str
-    cover_small: str
     duration: int
     platform: str
 
