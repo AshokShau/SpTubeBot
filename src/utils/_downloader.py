@@ -15,7 +15,7 @@ from Crypto.Cipher import AES
 from pytdbot import types
 
 from src import config
-from ._api import ApiData, _executor, HttpClient
+from ._api import ApiData, HttpClient
 from ._dataclass import TrackInfo, PlatformTracks, MusicTrack
 
 # Constants
@@ -99,29 +99,24 @@ class Download:
             logger.info(f"Processed {self.track.tc} in {time.monotonic() - start_time:.2f}s")
 
     async def download_and_decrypt(self, encrypted_path: Path, decrypted_path: Path) -> None:
-        """Optimized download and decrypt pipeline using httpx."""
         client = await HttpClient.get_client()
 
         try:
-            async with client.stream('GET', self.track.cdnurl) as response:
-                if response.status_code != 200:
-                    raise Exception(f"Unexpected status code: {response.status_code}")
-
-                with encrypted_path.open('wb') as f:
+            async with client.stream("GET", self.track.cdnurl) as response:
+                response.raise_for_status()
+                with encrypted_path.open("wb") as f:
                     async for chunk in response.aiter_bytes(CHUNK_SIZE):
                         f.write(chunk)
 
-            decrypted_data = await asyncio.get_event_loop().run_in_executor(
-                _executor,
-                self._decrypt_file,
-                encrypted_path,
-                self.track.key
+            decrypted_data = await asyncio.to_thread(
+                self._decrypt_file, encrypted_path, self.track.key
             )
             decrypted_path.write_bytes(decrypted_data)
-        except Exception as e:
+
+        except Exception:
             encrypted_path.unlink(missing_ok=True)
             decrypted_path.unlink(missing_ok=True)
-            raise e
+            raise
 
     @staticmethod
     def _decrypt_file(file_path: Path, hex_key: str) -> bytes:
