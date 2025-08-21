@@ -12,7 +12,6 @@ from .start import get_main_menu_keyboard
 async def callback_query(c: Client, message: types.UpdateNewCallbackQuery):
     data = message.payload.data.decode()
     user_id = message.sender_user_id
-
     # Help menu
     if data.startswith("help_"):
         await handle_help_callback(c, message)
@@ -20,7 +19,7 @@ async def callback_query(c: Client, message: types.UpdateNewCallbackQuery):
 
     # Back to main menu
     if data == "back_menu":
-        await message.answer("🔙 Back to main menu.")
+        await message.answer("⏳ Returning to main menu…")
         bot_username = c.me.usernames.editable_username
         bot_name = c.me.first_name
         await message.edit_message_text(
@@ -32,12 +31,13 @@ async def callback_query(c: Client, message: types.UpdateNewCallbackQuery):
 
     # Only handle spot_ callbacks
     if not data.startswith("spot_"):
-        c.logger.warning(f"⚠️ Invalid callback data received: {data}")
+        await message.answer("Unexpected callback data", show_alert=True)
+        await c.deleteMessages(message.chat_id, [message.message_id])
         return
 
     split1, split2 = data.find("_"), data.rfind("_")
     if split1 == -1 or split2 == -1 or split1 == split2:
-        await message.answer("❌ Invalid callback format.", show_alert=True)
+        await c.deleteMessages(message.chat_id, [message.message_id])
         return
 
     id_enc, uid = data[split1 + 1: split2], data[split2 + 1:]
@@ -45,19 +45,19 @@ async def callback_query(c: Client, message: types.UpdateNewCallbackQuery):
         await message.answer("🚫 This button wasn't meant for you.", show_alert=True)
         return
 
+    await message.answer("⏳ Processing your track, please wait...", show_alert=True)
     url = shortener.decode_url(id_enc)
     if not url:
-        await message.answer("⚠️ This button has expired. Please try again.", show_alert=True)
+        await c.deleteMessages(message.chat_id, [message.message_id])
         return
 
     # Get track info
     api = ApiData(url)
     track = await api.get_track()
     if isinstance(track, types.Error):
-        await message.answer(f"❌ Failed to fetch track info.\n{track.message or 'Unknown error.'}", show_alert=True)
+        await message.edit_message_text(f"❌ Failed to fetch track: {track.message or 'Unknown error'}")
         return
 
-    await message.answer("⏳ Processing your track, please wait...", show_alert=True)
     msg = await message.edit_message_text("🔄 Downloading the song...")
     if isinstance(msg, types.Error):
         c.logger.warning(f"❌ Failed to edit message: {msg.message}")
@@ -107,6 +107,7 @@ async def callback_query(c: Client, message: types.UpdateNewCallbackQuery):
             if not file_id:
                 await msg.edit_text("❌ Failed to send song to database.")
                 return
+
             audio = types.InputFileRemote(file_id)
         elif re.match(r"https?://t\.me/([^/]+)/(\d+)", audio_file):
             info = await c.getMessageLinkInfo(audio_file)
