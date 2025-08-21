@@ -33,7 +33,7 @@ URL_PATTERNS = {
 }
 
 SAVE_SNAP_PATTERNS = [
-    re.compile(r"(?i)https?://(?:www\.)?(instagram\.com|instagr\.am)/(reel|stories|p|tv)/[^\s/?]+"),
+    re.compile(r"(?i)https?://(?:www\.)?(instagram\.com|instagr\.am)/(reel|stories|p|tv|share)/[^\s/?]+",re.I),
     re.compile(r"(?i)https?://(?:[a-z]+\.)?(pinterest\.com|pin\.it)/[^\s]+"),
     re.compile(r"(?i)https?://(?:www\.)?fb\.watch/[^\s/?]+"),
     re.compile(r"(?i)https?://(?:www\.)?facebook\.com/.+/videos/\d+"),
