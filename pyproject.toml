@@ -4,23 +4,22 @@ version = "0.1.0"
 description = "A high-performance Telegram bot for downloading songs from Spotify, SoundCloud, Apple Music and YouTube in premium quality."
 requires-python = ">=3.13"
 dependencies = [
-     "httpx~=0.28.1",
-     "meval~=2.5",
-     "mutagen>=1.47.0",
-     "orjson~=3.11.3",
-     "pycryptodome~=3.23.0",
-     "pydantic~=2.12.3",
-     "pymongo~=4.15.3",
-     "pytdbot==0.9.7",
-     "python-dotenv>=1.1.1",
-     "tdjson==1.8.55",
-     "ujson~=5.11.0",
-     "yt-dlp~=2025.10.14",
+    "httpx~=0.28.1",
+    "meval~=2.5",
+    "mutagen>=1.47.0",
+    "orjson~=3.11.4",
+    "pycryptodome~=3.23.0",
+    "pydantic~=2.12.3",
+    "pymongo~=4.15.3",
+    "pytdbot==0.9.8",
+    "python-dotenv>=1.1.1",
+    "tdjson==1.8.56.post1",
+    "ujson~=5.11.0",
+    "yt-dlp~=2025.10.22",
 ]
 
 [project.license]
 file = "LICENSE"
-
 
 [project.scripts]
 start = "src.__main__:main"
