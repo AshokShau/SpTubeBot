@@ -1,29 +1,16 @@
-from os import getenv
+from decouple import config
 from pathlib import Path
 from typing import Optional
 
-from dotenv import load_dotenv
 
-load_dotenv()
-
-
-def get_env_int(name: str, default: Optional[int] = None) -> Optional[int]:
-    value = getenv(name)
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        print(f"Invalid value for {name}: {value}")
-        return default
-
-
-API_ID: Optional[int] = get_env_int("API_ID")
-API_HASH: Optional[str] = getenv("API_HASH")
-TOKEN: Optional[str] = getenv("TOKEN")
-API_KEY = getenv("API_KEY")
-API_URL = getenv("API_URL", "https://tgmusic.fallenapi.fun")
-DOWNLOAD_PATH = Path(getenv("DOWNLOAD_PATH", "database/music"))
-MONGO_URI: Optional[str] = getenv("MONGO_URI")
-LOGGER_ID = get_env_int("LOGGER_ID", -1002434755494)
-FSUB_ID = int(getenv("FSUB_ID", 0))
-YT_COOKIES: Optional[str] = getenv("YT_COOKIES")
-OWNER_ID = int(getenv("OWNER_ID", 5938660179))
+API_ID: Optional[int] = config("API_ID", default=6, cast=int)
+API_HASH: Optional[str] = config("API_HASH", default="", cast=str)
+TOKEN: Optional[str] = config("TOKEN", default="")
+API_KEY = config("API_KEY")
+API_URL = config("API_URL", default="https://tgmusic.fallenapi.fun", cast=str)
+DOWNLOAD_PATH = Path(config("DOWNLOAD_PATH", "database/music"))
+MONGO_URI: Optional[str] = config("MONGO_URI", default="")
+LOGGER_ID = config("LOGGER_ID", default=-1002434755494, cast=int)
+FSUB_ID = config("FSUB_ID", default=0, cast=int)
+YT_COOKIES: Optional[str] = config("YT_COOKIES", default="")
+OWNER_ID = config("OWNER_ID", default=5938660179)

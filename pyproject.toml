@@ -12,10 +12,10 @@ dependencies = [
     "pydantic~=2.12.3",
     "pymongo~=4.15.3",
     "pytdbot==0.9.8",
-    "python-dotenv>=1.2.1",
     "tdjson==1.8.56.post3",
     "ujson~=5.11.0",
     "yt-dlp~=2025.10.22",
+    "python-decouple"
 ]
 
 [project.license]
