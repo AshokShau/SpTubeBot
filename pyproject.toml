@@ -15,7 +15,7 @@ dependencies = [
     "tdjson==1.8.56.post3",
     "ujson~=5.11.0",
     "yt-dlp~=2025.10.22",
-    "python-decouple"
+    "python-decouple~=3.8",
 ]
 
 [project.license]
