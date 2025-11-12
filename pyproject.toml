@@ -10,11 +10,11 @@ dependencies = [
     "orjson~=3.11.4",
     "pycryptodome~=3.23.0",
     "pydantic~=2.12.4",
-    "pymongo~=4.15.3",
+    "pymongo~=4.15.4",
     "pytdbot==0.9.8.post1",
     "tdjson==1.8.56.post3",
     "ujson~=5.11.0",
-    "yt-dlp~=2025.10.22",
+    "yt-dlp~=2025.11.12",
     "python-decouple~=3.8",
 ]
 
