@@ -1,3 +1,4 @@
+import html
 import uuid
 from typing import Union, List, Optional
 import asyncio
@@ -5,81 +6,87 @@ import asyncio
 from pytdbot import Client, types
 from pytdbot.exception import StopHandlers
 
-from src.utils import ApiData, Filter, APIResponse, Download
+from src.utils import ApiData, Filter, SnapResponse, Download
 
 from ._fsub import fsub
 from ._utils import has_audio_stream
 
-
-
 def batch_chunks(items: List[str], size: int = 10) -> List[List[str]]:
     return [items[i:i + size] for i in range(0, len(items), size)]
-
 
 async def _handle_media_upload(
     client: Client,
     message: types.Message,
     media_url: str,
     media_type: str,
-    reply_message: types.Message
+    reply_message: types.Message,
+    text: Optional[str] = None,
 ) -> Optional[types.Error]:
-    input_file = types.InputFileRemote(media_url)
     send_func = {
         "photo": message.reply_photo,
         "video": message.reply_video,
-        "animation": message.reply_animation
+        "animation": message.reply_animation,
+        "audio": message.reply_audio,
     }.get(media_type)
 
     if not send_func:
         return types.Error(message="Unsupported media type")
 
-    result = await send_func(**{media_type: input_file})
+    input_file = types.InputFileRemote(media_url)
+    kwargs = {media_type: input_file, "caption": text}
+    result = await send_func(**kwargs)
     if isinstance(result, types.Error) and "WEBPAGE_CURL_FAILED" in result.message:
         file_ext = ".mp4" if media_type in {"video", "animation"} else ".jpg"
         file_name = f"{uuid.uuid4()}{file_ext}"
+
         local_file = await Download(None).download_file(media_url, file_name)
         if isinstance(local_file, types.Error):
             client.logger.warning(f"❌ Media download failed: {local_file.message}")
             return local_file
 
-        input_file_local = types.InputFileLocal(local_file)
-        result = await send_func(**{media_type: input_file_local})
-
+        kwargs = {media_type: types.InputFileLocal(local_file), "caption": text}
+        result = await send_func(**kwargs)
     if isinstance(result, types.Error):
         client.logger.warning(f"❌ Media upload failed: {result.message}")
         return result
 
     return None
 
-
 async def _send_media_album(
     client: Client,
     message: types.Message,
     media_urls: List[str],
-    media_type: str
+    media_type: str,
+    caption: str = None,
 ) -> Optional[types.Error]:
-    content_cls = {
-        "photo": types.InputMessagePhoto,
-        "video": types.InputMessageVideo,
-        "animation": types.InputMessageAnimation
-    }.get(media_type)
+    parse_caption = await client.parseTextEntities(caption, types.TextParseModeHTML())
+    if isinstance(parse_caption, types.Error):
+        client.logger.warning(f"Failed to parse caption: {parse_caption.message}")
+        parse_caption = await client.parseTextEntities("#FA", types.TextParseModeHTML())
 
-    if not content_cls:
-        return types.Error(message="Unsupported media type")
-
-    contents = [
-        content_cls(**{media_type: types.InputFileRemote(url)})
-        for url in media_urls
-    ]
+    input_contents = []
+    for url in media_urls:
+        input_file = types.InputFileRemote(url)
+        if media_type == "photo":
+            input_contents.append(types.InputMessagePhoto(photo=input_file, caption=parse_caption))
+        elif media_type == "video":
+            input_contents.append(types.InputMessageVideo(video=input_file, caption=parse_caption))
+        elif media_type == "animation":
+            input_contents.append(types.InputMessageAnimation(animation=input_file, caption=parse_caption))
+        elif media_type == "audio":
+            input_contents.append(types.InputMessageAudio(audio=input_file, caption=parse_caption))
+        else:
+            return types.Error(message="Unsupported media type")
 
     result = await client.sendMessageAlbum(
         chat_id=message.chat_id,
-        input_message_contents=contents,
+        input_message_contents=input_contents,
         reply_to=types.InputMessageReplyToMessage(message_id=message.id),
+        # options=types.MessageSendOptions()
     )
 
     if isinstance(result, types.Error):
-        client.logger.warning(f"❌ Media album upload failed: {result.message}")
+        client.logger.warning(f"❌ Media album upload failed: {result.message} \ntype: {media_type}")
         return result
 
     return None
@@ -116,47 +123,51 @@ async def insta_autodetect(client: Client, message: types.Message):
 async def process_insta_query(client: Client, message: types.Message, query: str) -> None:
     reply = await message.reply_text("⏳ Processing...")
     api = ApiData(query)
-    api_data: Union[APIResponse, types.Error, None] = await api.get_snap()
-
+    api_data: Union[SnapResponse, types.Error, None] = await api.get_snap()
     if isinstance(api_data, types.Error) or not api_data:
         await reply.edit_text(f"❌ Error: {api_data.message if api_data else 'No results found'}")
         return
 
+    caption = html.escape(api_data.title) or "#FA"
     # --- Handle Images ---
-    if api_data.image:
-        for batch in batch_chunks(api_data.image, 10):
+    if api_data.images:
+        for batch in batch_chunks(api_data.images, 10):
             error = await (
-                _handle_media_upload(client, message, batch[0], "photo", reply)
-                if len(batch) == 1
-                else _send_media_album(client, message, batch, "photo")
+                _handle_media_upload(client, message, api_data.images[0], "photo", reply, caption)
+                if len(api_data.images) == 1
+                else _send_media_album(client, message, batch, "photo", caption)
             )
 
             if error:
                 await reply.edit_text(f"❌ Failed to send photo(s): {error.message}")
                 return
-            await asyncio.sleep(1)
+
+    # --- Handle Audio ---
+    if api_data.audios:
+      audio_urls = [a.url for a in api_data.audios if a.url]
+      for batch in batch_chunks(audio_urls, 10):
+          if error := await (
+              _handle_media_upload(client, message, audio_urls[0], "audio", reply, caption)
+              if len(audio_urls) == 1
+              else _send_media_album(client, message, batch, "audio", caption)
+          ):
+              client.logger.warning(f"❌ Failed to send audio(s): {error.message}")
 
     # --- Handle Videos ---
-    if api_data.video:
-        video_urls = [v.video for v in api_data.video if v.video]
+    if api_data.videos:
+        video_urls = [v.url for v in api_data.videos if v.url]
         if not video_urls:
             await reply.delete()
             return
 
         if len(video_urls) == 1:
-            error = await _handle_media_upload(client, message, video_urls[0], "video", reply)
-            if error:
+            if error := await _handle_media_upload(client, message, video_urls[0], "video", reply, caption):
                 await reply.edit_text(f"❌ Failed to send video: {error.message}")
             else:
                 await reply.delete()
             return
 
-        # Check audio presence concurrently
-        results = await asyncio.gather(
-            *(has_audio_stream(url) for url in video_urls),
-            return_exceptions=True
-        )
-
+        results = await asyncio.gather(*(has_audio_stream(url) for url in video_urls), return_exceptions=True)
         videos_with_audio, videos_without_audio = [], []
         for url, result in zip(video_urls, results):
             if isinstance(result, Exception):
@@ -168,12 +179,11 @@ async def process_insta_query(client: Client, message: types.Message, query: str
             await reply.edit_text("❌ No valid videos found.")
             return
 
-        # Send videos with audio
         for batch in batch_chunks(videos_with_audio, 10):
             error = await (
-                _handle_media_upload(client, message, batch[0], "video", reply)
-                if len(batch) == 1
-                else _send_media_album(client, message, batch, "video")
+                _handle_media_upload(client, message, videos_with_audio[0], "video", reply, caption)
+                if len(videos_with_audio) == 1
+                else _send_media_album(client, message, batch, "video", caption)
             )
             if error:
                 await reply.edit_text(f"❌ Failed to send video(s): {error.message}")
@@ -185,16 +195,10 @@ async def process_insta_query(client: Client, message: types.Message, query: str
             return
 
         # Send videos without audio as animations
-        for batch in batch_chunks(videos_without_audio, 10):
-            error = await (
-                _handle_media_upload(client, message, batch[0], "animation", reply)
-                if len(batch) == 1
-                else _send_media_album(client, message, batch, "animation")
-            )
-            if error:
-                await reply.edit_text(f"❌ Failed to send animation(s): {error.message}")
-                return
-            await asyncio.sleep(1)
+        for i, url in enumerate(videos_without_audio):
+            current_caption = caption if i == 0 else None
+            if error := await _handle_media_upload(client, message, url, "animation", reply, current_caption):
+                client.logger.warning(f"❌ Failed to send animation: {error.message}")
 
     await reply.delete()
     return

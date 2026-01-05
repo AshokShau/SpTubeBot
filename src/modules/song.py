@@ -1,7 +1,7 @@
 from pytdbot import Client, types
 from pytdbot.exception import StopHandlers
 
-from src.utils import ApiData, shortener, Filter, download_playlist_zip
+from src.utils import ApiData, shortener, Filter
 from ._fsub import fsub
 
 
@@ -23,7 +23,7 @@ async def process_spotify_query(message: types.Message, query: str):
 
     keyboard = [
         [types.InlineKeyboardButton(
-            text=f"{track.name} - {track.artist}",
+            text=f"{track.title} - {track.channel}",
             type=types.InlineKeyboardButtonTypeCallback(
                 f"spot_{shortener.encode_url(track.url)}_0".encode()
             )
@@ -58,46 +58,3 @@ async def spotify_autodetect(_: Client, message: types.Message):
     await process_spotify_query(message, message.text)
     raise StopHandlers
 
-
-@Client.on_message(filters=Filter.command(["dl_zip", "playlist"]))
-@fsub
-async def dl_playlist(c: Client, message: types.Message):
-    parts = message.text.strip().split(" ", 1)
-
-    if len(parts) < 2 or not parts[1].strip():
-        await message.reply_text("❗ Please provide a playlist URL or search query.\n\nExample: `/dl_zip artist or url`", parse_mode="markdown")
-        return
-
-    query = parts[1].strip()
-    api = ApiData(query)
-    result = await api.get_info()
-    if isinstance(result, types.Error):
-        await message.reply_text(f"❌ Failed to fetch playlist.\n<b>{result.message}</b>", parse_mode="html")
-        return
-
-    if not result.results:
-        await message.reply_text("⚠️ No tracks found for the given input.")
-        return
-
-    first_song = result.results[0]
-    if first_song.platform == "youtube":
-        await message.reply_text("You can't download YouTube playlists.")
-        return
-
-    if len(result.results) > 30:
-        result.results = result.results[:30]
-
-    reply = await message.reply_text(f"⏳ Downloading {len(result.results)} tracks and creating ZIP…")
-    zip_path = await download_playlist_zip(result)
-    if not zip_path:
-        await message.reply_text("❌ Failed to download any tracks. Please try again.")
-        return
-
-    ok = await c.editMessageMedia(
-        chat_id=reply.chat_id,
-        message_id=reply.id,
-        input_message_content=types.InputMessageDocument(types.InputFileLocal(zip_path)),
-    )
-    if isinstance(ok, types.Error):
-        await message.reply_text(f"❌ Error: {ok.message}")
-        return

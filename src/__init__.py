@@ -18,7 +18,6 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("pymongo").setLevel(logging.WARNING)
 
 LOGGER = logging.getLogger("Bot")
-
 StartTime = datetime.now()
 
 
@@ -42,7 +41,6 @@ class Telegram(Client):
 
     async def start(self) -> None:
         await self._http_client.get_client()
-        await self.loop.create_task(self._save_cookies())
         await super().start()
         self.logger.info(f"Bot started in {datetime.now() - StartTime} seconds.")
         await db.connect()
@@ -54,7 +52,6 @@ class Telegram(Client):
 
     @staticmethod
     def _check_config() -> None:
-        # Check if FFmpeg is installed
         if not shutil.which('ffmpeg'):
             raise RuntimeError(
                 "FFmpeg is not installed or not in system PATH. "
@@ -77,47 +74,5 @@ class Telegram(Client):
             raise RuntimeError(
                 f"Missing required config values in .env: {', '.join(missing)}"
             )
-
-
-    async def _save_cookies(self) -> None:
-        from pathlib import Path
-        from urllib.parse import urlparse
-        from typing import Optional
-
-        async def _download_cookies(url: str) -> Optional[str]:
-            try:
-                parsed = urlparse(url)
-                if parsed.netloc != 'batbin.me':
-                    LOGGER.error(f"Invalid domain in URL: {url}")
-                    return None
-                    
-                paste_id = parsed.path.strip('/').split('/')[-1]
-                if not paste_id:
-                    LOGGER.error(f"Could not extract paste ID from URL: {url}")
-                    return None
-                    
-                raw_url = f"https://batbin.me/raw/{paste_id}"
-                http_client = await self._http_client.get_client()
-                resp = await http_client.get(raw_url)
-                if resp.status_code != 200:
-                    LOGGER.error(f"Failed to download cookies from {url}: HTTP {resp.status_code}")
-                    return None
-                return resp.text
-            except Exception as exc:
-                LOGGER.error(f"Error downloading cookies: {str(exc)}")
-                return None
-
-        db_dir = Path("database")
-        db_dir.mkdir(exist_ok=True)
-        if config.YT_COOKIES:
-            if content := await _download_cookies(config.YT_COOKIES):
-                filename = "yt_cookies.txt"
-                try:
-                    (db_dir / filename).write_text(content)
-                    LOGGER.info(f"Successfully saved {filename}")
-                except Exception as e:
-                    LOGGER.error(f"Failed to save cookies to file: {str(e)}")
-        return None
-
 
 client: Telegram = Telegram()

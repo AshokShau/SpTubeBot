@@ -4,9 +4,9 @@ from typing import Dict, Optional, Union, Type, TypeVar
 import httpx
 from pytdbot import types
 from src import config
-from src.utils._dataclass import PlatformTracks, TrackInfo, MusicTrack, APIResponse
+from src.utils._dataclass import SearchResponse, Spotify, TrackResponse, SnapResponse, Track
+from src.utils.regex import URL_PATTERNS, SAVE_SNAP_PATTERNS
 
-# === Constants ===
 DOWNLOAD_TIMEOUT = 300.0
 CONNECT_TIMEOUT = 30.0
 DEFAULT_LIMIT = "10"
@@ -20,47 +20,6 @@ MIME_APPLICATION = "application/json"
 MAX_CONCURRENT_DOWNLOADS = 5
 
 T = TypeVar("T")
-
-# === URL Regex Patterns ===
-URL_PATTERNS = {
-    "spotify": re.compile(
-        r'^(https?://)?([a-z0-9-]+\.)*spotify\.com/(track|playlist|album|artist)/[a-zA-Z0-9]+(\?.*)?$'),
-    "youtube": re.compile(r'^(https?://)?([a-z0-9-]+\.)*(youtube\.com/watch\?v=|youtu\.be/)[\w-]+(\?.*)?$'),
-    "youtube_music": re.compile(r'^(https?://)?([a-z0-9-]+\.)*youtube\.com/(watch\?v=|playlist\?list=)[\w-]+(\?.*)?$'),
-    "soundcloud": re.compile(r'^(https?://)?([a-z0-9-]+\.)*soundcloud\.com/[\w-]+(/[\w-]+)?(/sets/[\w-]+)?(\?.*)?$'),
-    "apple_music": re.compile(
-        r'^(https?://)?([a-z0-9-]+\.)?apple\.com/[a-z]{2}/(album|playlist|song)/[^/]+/(pl\.[a-zA-Z0-9]+|\d+)(\?i=\d+)?(\?.*)?$')
-}
-
-# === Save Snap Regex Patterns ===
-SAVE_SNAP_PATTERNS = [
-    re.compile(
-        r"(?i)https?://(?:www\.)?(instagram\.com|instagr\.am)/(reel|reels|stories|p|tv|share)/[^\s/?]+",
-        re.I,
-    ),
-    re.compile(r"(?i)https?://(?:[a-z]+\.)?(pinterest\.com|pin\.it)/[^\s]+"),
-    re.compile(r"(?i)https?://(?:www\.)?fb\.watch/[^\s/?]+"),
-    re.compile(r"(?i)https?://(?:www\.)?facebook\.com/(?:.+/videos/\d+|reel/\d+|share/r/[\w\d]+)/?"),
-    re.compile(
-        r"https?://(?:www\.|m\.)?(?:vt\.)?tiktok\.com/(?:@[\w.-]+/(?:video|photo)/\d+|v/\d+\.html|t/[\w]+|[\w]+)",
-        re.I,
-    ),
-    re.compile(r"https?://(?:www\.)?(?:x|twitter)\.com/[^\s]+", re.I),
-    re.compile(
-        r"https?://(?:www\.)?threads\.(?:com|net)/@[\w.-]+/post/[\w-]+(?:\?[\w=&%-]+)?",
-        re.I,
-    ),
-    re.compile(
-        r"https?://(?:(?:www|old)\.)?reddit\.com/r/[\w]+/(?:(?:comments/[\w]+(?:/[^\s]*)?)|(?:s/[\w]+))"
-        r"|https?://redd\.it/[\w]+",
-        re.I,
-    ),
-    re.compile(
-        r"https?://(?:clips\.twitch\.tv/|(?:www\.)?twitch\.tv/[^/]+/clip/)([\w-]+(?:-\w+)*)",
-        re.I,
-    ),
-]
-
 
 _client: Optional[httpx.AsyncClient] = None
 class HttpClient:
@@ -123,30 +82,34 @@ class ApiData:
         return bool(self.extract_save_snap_url())
 
     # --- API Methods ---
-    async def get_info(self) -> Union[types.Error, PlatformTracks]:
+    async def get_info(self) -> Union[types.Error, SearchResponse]:
         if not self.is_valid():
             return types.Error(message="Url is not valid")
         return await self._request_json(
-            f"{self.api_url}/get_url?url={urllib.parse.quote(self.query)}",
-            PlatformTracks, list_key="results", item_model=MusicTrack
+            f"{self.api_url}/api/get_url?url={urllib.parse.quote(self.query)}",
+            SearchResponse, list_key="results", item_model=Track
         )
 
-    async def search(self, limit: str = DEFAULT_LIMIT) -> Union[types.Error, PlatformTracks]:
+    async def search(self, limit: str = DEFAULT_LIMIT) -> Union[types.Error, SearchResponse]:
         return await self._request_json(
-            f"{self.api_url}/search?query={urllib.parse.quote(self.query)}&limit={urllib.parse.quote(limit)}",
-            PlatformTracks, list_key="results", item_model=MusicTrack
+            f"{self.api_url}/api/search?query={urllib.parse.quote(self.query)}&limit={urllib.parse.quote(limit)}&platform=spotify",
+            SearchResponse, list_key="results", item_model=Track
         )
 
-    async def get_track(self) -> Union[types.Error, TrackInfo]:
-        endpoint = f"{self.api_url}/track?url={urllib.parse.quote(self.query)}"
-        return await self._request_json(endpoint, TrackInfo)
+    async def get_track(self) -> Union[types.Error, TrackResponse]:
+        endpoint = f"{self.api_url}/api/track?url={urllib.parse.quote(self.query)}"
+        return await self._request_json(endpoint, TrackResponse)
 
-    async def get_snap(self) -> Union[types.Error, APIResponse]:
+    async def spotify(self) -> Union[types.Error, Spotify]:
+        endpoint = f"{self.api_url}/api/sp?url={urllib.parse.quote(self.query)}"
+        return await self._request_json(endpoint, Spotify)
+
+    async def get_snap(self) -> Union[types.Error, SnapResponse]:
         if not self.is_save_snap_url():
             return types.Error(message="Url is not valid")
         return await self._request_json(
-            f"{self.api_url}/snap?url={urllib.parse.quote(self.query)}",
-            APIResponse
+            f"{self.api_url}/api/snap?url={urllib.parse.quote(self.query)}",
+            SnapResponse
         )
 
     async def evaluate(self) -> Union[str, "types.Error"]:

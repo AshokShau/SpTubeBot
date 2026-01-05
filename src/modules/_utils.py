@@ -35,8 +35,6 @@ StartMessage = (
         "📩 Just send a song name, link, or media URL.\n"
         "🔎 Search inline: <code>@{bot_username} your search</code>\n\n"
         "🔐 Privacy policy: /privacy\n"
-        "📺 Download videos: /yt <code>url</code>\n"
-        "🎵 Get Spotify playlists: /playlist <code>url</code>\n"
     )
 
 async def handle_help_callback(_: Client, message: types.UpdateNewCallbackQuery):

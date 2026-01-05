@@ -26,8 +26,6 @@ def fsub(func: Callable[..., Awaitable]):
     @wraps(func)
     async def wrapper(client: Client, message: types.Message, *args, **kwargs):
         chat_id = message.chat_id
-
-        # Groups don't require FSUB
         if chat_id < 0:
             return await func(client, message, *args, **kwargs)
 
@@ -49,7 +47,7 @@ def fsub(func: Callable[..., Awaitable]):
         )
         if isinstance(member, types.Error) or member.status is None:
             if member.code == 400 and member.message == "Chat not found":
-                client.logger.warning(f"❌ FSUB group not found: {FSUB_ID}")
+                client.logger.warning(f"FSUB group not found: {FSUB_ID}")
                 return await func(client, message, *args, **kwargs)
             status_type = types.ChatMemberStatusLeft().getType()
         else:
@@ -60,7 +58,7 @@ def fsub(func: Callable[..., Awaitable]):
             member_status_cache[user_id] = status_type
             return await func(client, message, *args, **kwargs)
 
-        # Get invite link from cache or API
+        # Get invite link from cache or TG
         invite_link = invite_link_cache.get(FSUB_ID)
         if not invite_link:
             _chat_id = int(str(FSUB_ID)[4:]) if str(FSUB_ID).startswith("-100") else FSUB_ID

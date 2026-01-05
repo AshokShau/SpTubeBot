@@ -18,9 +18,8 @@ from pytdbot import types
 
 from src import config
 from ._api import ApiData, HttpClient
-from ._dataclass import TrackInfo, PlatformTracks, MusicTrack
+from ._dataclass import Spotify, Track, TrackResponse
 
-# Constants
 CHUNK_SIZE = 1024 * 1024  # 1 MB
 DEFAULT_FILE_PERM = 0o644
 
@@ -37,11 +36,15 @@ class InvalidHexKeyError(Exception):
 
 
 class Download:
-    def __init__(self, track: Optional[TrackInfo] = None):
+    def __init__(self, track: Optional[Union[Spotify, TrackResponse]] = None):
         self.track = track
         self.downloads_dir = config.DOWNLOAD_PATH
         self.downloads_dir.mkdir(parents=True, exist_ok=True, mode=0o755)
-        filename = str(uuid.uuid4()) if track is None else self._sanitize_filename(track.name)
+        if isinstance(track, TrackResponse):
+            filename = str(uuid.uuid4())
+        else:
+            filename = str(uuid.uuid4()) if track is None else self._sanitize_filename(track.name)
+        self.dl_file_name = filename
         self.output_file = self.downloads_dir / f"{filename}.ogg"
 
     async def process(self) -> Union[Tuple[str, Optional[str]], types.Error]:
@@ -50,31 +53,25 @@ class Download:
             if not self.track.cdnurl:
                 return types.Error(message="Missing CDN URL")
 
-            # Check for existing files first
-            cover_path = self.downloads_dir / f"{self.track.tc}_cover.jpg"
-            if self.output_file.exists():
-                logger.debug(f"Using cached file: {self.output_file}")
-                return str(self.output_file), str(cover_path) if cover_path.exists() else None
+            if self.track.platform.lower() == "spotify":
+                cover_path = self.downloads_dir / f"{self.track.tc}_cover.jpg"
+                if self.output_file.exists():
+                    logger.debug(f"Using cached file: {self.output_file}")
+                    return str(self.output_file), str(cover_path) if cover_path.exists() else None
+                return await self.process_standard()
 
-            # Process based on platform
-            if self.track.platform in ["youtube", "soundcloud"]:
-                return await self.process_direct_dl()
-
-            return await self.process_standard()
-
+            return await self.process_direct_dl()
         except Exception as e:
-            logger.error(f"Error processing track {self.track.tc}: {str(e)}", exc_info=True)
+            logger.error(f"Error processing track {self.track.id}: {str(e)}", exc_info=True)
             return types.Error(message=f"Track processing failed: {str(e)}")
 
     async def process_direct_dl(self) -> Tuple[str, Optional[str]]:
         """Handle direct downloads with optimized flow."""
         if re.match(r'^https:\/\/t\.me\/([a-zA-Z0-9_]{5,})\/(\d+)$', self.track.cdnurl):
-            cover_path = await self.save_cover(self.track.cover)
-            return self.track.cdnurl, cover_path
+            return self.track.cdnurl, None
 
         file_path = await self.download_file(self.track.cdnurl, "")
-        cover_path = await self.save_cover(self.track.cover)
-        return file_path, cover_path
+        return file_path, None
 
     async def process_standard(self) -> Tuple[str, Optional[str]]:
         """Optimized standard processing flow."""
@@ -222,7 +219,7 @@ class Download:
             audio["DURATION"] = [str(self.track.duration)]
             audio.save()
         except Exception as e:
-            logger.error(f"Failed to add Vorbis comments: {e}", exc_info=True)
+            logger.error(f"Failed to add comments: {e}", exc_info=True)
 
     async def download_file(self, url: str, file_name: str = "") -> str | types.Error:
         if not url:
@@ -231,7 +228,8 @@ class Download:
         client = await HttpClient.get_client()
         self.downloads_dir.mkdir(parents=True, exist_ok=True)
         if not file_name:
-            file_name = f"{self._sanitize_filename(self.track.name)}.mp4"
+            file_name = f"{self._sanitize_filename(self.dl_file_name)}.mp4"
+
         try:
             async with client.stream("GET", url, follow_redirects=True) as response:
                 if response.status_code != 200:
@@ -283,13 +281,9 @@ class Download:
     @staticmethod
     def _sanitize_filename(name: str) -> str:
         """Sanitize filename for cross-platform safety."""
-        # Remove control/non-printable characters
         name = re.sub(r'[\x00-\x1f\x7f]+', '', name)
-        # Replace invalid filename chars with underscore
         name = re.sub(r'[<>:"/\\|?*]', '_', name)
-        # Allow only letters, numbers, spaces, dash, underscore, and dot
         name = re.sub(r'[^\w\s\-.]', '_', name)
-        # Collapse multiple spaces/underscores into single space
         name = re.sub(r'[\s_]+', ' ', name).strip()
         return name
 
@@ -316,55 +310,3 @@ class Download:
         except Exception as e:
             logger.warning(f"Failed to download cover: {e}")
             return None
-
-
-async def download_playlist_zip(playlist: PlatformTracks) -> Optional[str]:
-    """Optimized playlist download with parallel processing."""
-    downloads_dir = config.DOWNLOAD_PATH
-    zip_path = downloads_dir / f"playlist_{int(time.time())}.zip"
-    temp_dir = downloads_dir / f"tmp_{uuid.uuid4()}"
-    temp_dir.mkdir(parents=True, exist_ok=True)
-
-    try:
-        tasks = [
-            _process_playlist_track(music, temp_dir)
-            for music in playlist.results
-        ]
-        audio_files = await asyncio.gather(*tasks, return_exceptions=True)
-        audio_files = [f for f in audio_files if isinstance(f, Path)]
-
-        if not audio_files:
-            return None
-
-        temp_zip = downloads_dir / f"tmp_{uuid.uuid4()}.zip"
-        with zipfile.ZipFile(temp_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            for file in audio_files:
-                zipf.write(file, arcname=file.name)
-
-        temp_zip.rename(zip_path)
-        return str(zip_path)
-    finally:
-        for file in temp_dir.glob('*'):
-            file.unlink(missing_ok=True)
-
-
-async def _process_playlist_track(music: MusicTrack, temp_dir: Path) -> Optional[Path]:
-    """Process a single playlist track."""
-    try:
-        track = await ApiData(music.url).get_track()
-        if isinstance(track, types.Error):
-            return None
-
-        dl = Download(track)
-        result = await dl.process()
-        if isinstance(result, types.Error):
-            return None
-
-        audio_file, _ = result
-        src_path = Path(audio_file)
-        dest_path = temp_dir / src_path.name
-        src_path.rename(dest_path)
-        return dest_path
-    except Exception as e:
-        logger.warning(f"Failed to process track {music.url}: {e}")
-        return None

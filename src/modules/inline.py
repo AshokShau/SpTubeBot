@@ -2,11 +2,13 @@ import re
 import uuid
 from html import escape
 from typing import Union
+from urllib.parse import urlparse
 
 from pytdbot import Client, types
 
-from src.utils import ApiData, shortener, APIResponse
+from src.utils import ApiData, shortener, SnapResponse
 from ._media_utils import process_track_media, get_reply_markup
+from .. import db
 
 
 @Client.on_updateNewInlineQuery()
@@ -36,9 +38,9 @@ async def inline_search(c: Client, message: types.UpdateNewInlineQuery):
     results = []
     for track in search.results:
         display_text = (
-            f"<b>🎧 Track:</b> <b>{escape(track.name)}</b>\n"
-            f"<b>👤 Artist:</b> <i>{escape(track.artist)}</i>\n"
-            f"<b>📅 Year:</b> {track.year}\n"
+            f"<b>🎧 Track:</b> <b>{escape(track.title)}</b>\n"
+            f"<b>👤 Artist:</b> <i>{escape(track.channel)}</i>\n"
+            # f"<b>📅 Year:</b> {track.year}\n"
             f"<b>⏱ Duration:</b> {track.duration // 60}:{track.duration % 60:02d} mins\n"
             f"<b>🔗 Platform:</b> {track.platform.capitalize()}\n"
             f"<code>{track.id}</code>"
@@ -49,14 +51,14 @@ async def inline_search(c: Client, message: types.UpdateNewInlineQuery):
             c.logger.warning(f"❌ Error parsing inline result for {track.name}: {parse.message}")
             continue
 
-        reply_markup = get_reply_markup(track.name, track.artist)
+        reply_markup = get_reply_markup(track.title, track.channel)
 
         results.append(
             types.InputInlineQueryResultArticle(
                 id=shortener.encode_url(track.url),
-                title=f"{track.name} - {track.artist}",
-                description=f"{track.name} by {track.artist} ({track.year})",
-                thumbnail_url=track.cover,
+                title=f"{track.title} - {track.channel}",
+                description=f"{track.title} by {track.channel}",
+                thumbnail_url=track.thumbnail,
                 thumbnail_width=640,
                 thumbnail_height=640,
                 input_message_content=types.InputMessageText(parse),
@@ -77,10 +79,22 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
     if not inline_message_id:
         return
 
-    # Decode and validate URL
     url = shortener.decode_url(result_id)
     if not url:
         return
+
+    if "spotify.com" in url:
+        parsed = urlparse(url)
+        parts = parsed.path.strip("/").split("/")
+        if len(parts) >= 2 and parts[0] == "track":
+            if file_id := await db.get_song_file_id(parts[1]):
+                audio = types.InputFileRemote(file_id)
+                reply = await c.editInlineMessageMedia(inline_message_id=inline_message_id, input_message_content=types.InputMessageAudio(audio=audio))
+                if isinstance(reply, types.Error):
+                    c.logger.error(f"Failed to send audio file: {reply.message}")
+                    parsed_status = await c.parseTextEntities(f"Failed to send the song. Please try again later.{reply.message}", types.TextParseModeHTML())
+                    await c.editInlineMessageText(inline_message_id=inline_message_id, input_message_content=types.InputMessageText(parsed_status))
+                return
 
     api = ApiData(url)
     if api.is_save_snap_url():
@@ -88,7 +102,7 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
 
     track = await api.get_track()
     if isinstance(track, types.Error):
-        parsed_status = await c.parseTextEntities(f"❌ Failed to fetch track: {track.message or 'Unknown error'}", types.TextParseModeHTML())
+        parsed_status = await c.parseTextEntities(f"Failed to fetch track: {track.message or 'Unknown error'}", types.TextParseModeHTML())
         await c.editInlineMessageText(
             inline_message_id=inline_message_id,
             input_message_content=types.InputMessageText(parsed_status)
@@ -96,21 +110,23 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
         return
 
     # Process the track media
-    audio, cover, status_text = await process_track_media(
-        c, track, inline_message_id=inline_message_id
-    )
-
-    if not audio:
-        parsed_status = await c.parseTextEntities(status_text, types.TextParseModeHTML())
+    result= await process_track_media(c, track, inline_message_id=inline_message_id)
+    if isinstance(result, types.Error):
+        parsed_status = await c.parseTextEntities(result.message, types.TextParseModeHTML())
         await c.editInlineMessageText(
             inline_message_id=inline_message_id,
             input_message_content=types.InputMessageText(parsed_status)
         )
         return
 
-    # Get reply markup
-    reply_markup = get_reply_markup(track.name, track.artist)
-    parsed_status = await c.parseTextEntities(status_text, types.TextParseModeHTML())
+    audio, cover = result
+    if not audio:
+        parsed_status = await c.parseTextEntities("No Audio", types.TextParseModeHTML())
+        await c.editInlineMessageText(
+            inline_message_id=inline_message_id,
+            input_message_content=types.InputMessageText(parsed_status)
+        )
+        return
 
     # Send the audio
     reply = await c.editInlineMessageMedia(
@@ -118,12 +134,7 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
         input_message_content=types.InputMessageAudio(
             audio=audio,
             album_cover_thumbnail=types.InputThumbnail(types.InputFileLocal(cover)) if cover else None,
-            title=track.name,
-            performer=track.artist,
-            duration=track.duration,
-            caption=parsed_status,
         ),
-        reply_markup=reply_markup,
     )
 
     if isinstance(reply, types.Error):
@@ -140,7 +151,7 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
 
 async def process_snap_inline(c: Client, message: types.UpdateNewInlineQuery, query: str):
     api = ApiData(query)
-    api_data: Union[APIResponse, types.Error, None] = await api.get_snap()
+    api_data: Union[SnapResponse, types.Error, None] = await api.get_snap()
 
     if isinstance(api_data, types.Error) or not api_data:
         text = api_data.message.strip() or "An unknown error occurred."

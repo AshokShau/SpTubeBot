@@ -7,10 +7,10 @@ from pytdbot import types
 
 
 from src.config import MONGO_URI, LOGGER_ID
-from ._dataclass import TrackInfo
+from ._dataclass import Spotify
 
 
-async def convert_to_m4a(input_file: str, cover_file: str, track: TrackInfo) -> str | None:
+async def convert_to_m4a(input_file: str, cover_file: str, track: Spotify) -> str | None:
     """Convert audio to M4A with cover art and metadata."""
     abs_input = os.path.abspath(input_file)
     abs_cover = os.path.abspath(cover_file)
@@ -41,8 +41,8 @@ async def convert_to_m4a(input_file: str, cover_file: str, track: TrackInfo) -> 
     stdout, stderr = await proc.communicate()
 
     if proc.returncode != 0:
-        print(f"❌ ffmpeg failed:\n{stderr.decode(errors='ignore')}")
-        print(f"🔍 stdout:\n{stdout.decode(errors='ignore')}")
+        print(f"ffmpeg failed:\n{stderr.decode(errors='ignore')}")
+        print(f"stdout:\n{stdout.decode(errors='ignore')}")
         return None
 
     return output_file
@@ -118,7 +118,7 @@ class MongoDB:
         return None
 
     async def upload_song_and_get_file_id(
-            self, file_path: str, cover: Optional[str], track: TrackInfo
+            self, file_path: str, cover: Optional[str], track: Spotify
     ) -> Optional[str] | types.Error:
         """Upload song to logger chat, store link, and return file ID."""
         from src import client
@@ -137,7 +137,7 @@ class MongoDB:
 
         upload = await _send(file_path)
 
-        # Handle "uploaded as voice" issue
+        # Handle "uploaded as voice" issue (TG MOOD)
         if not isinstance(upload, types.Error) and isinstance(upload.content, types.MessageVoiceNote):
             fixed_path = await convert_to_m4a(file_path, cover, track)
             if not fixed_path:

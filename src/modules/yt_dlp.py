@@ -1,41 +1,12 @@
 import asyncio
 import os
-import random
 import re
 
-import httpx
 from pytdbot import Client, types
 
 from src.config import DOWNLOAD_PATH
 from src.utils import Filter
 from ._fsub import fsub
-
-
-async def get_working_proxy():
-    urls = {
-        "socks5": "https://raw.githubusercontent.com/olgavlncia/proxyhub/main/output/socks5.txt",
-        "http": "https://raw.githubusercontent.com/olgavlncia/proxyhub/main/output/http.txt",
-    }
-
-    async with httpx.AsyncClient(timeout=5) as client:
-        socks5_req, http_req = await asyncio.gather(
-            client.get(urls["socks5"]),
-            client.get(urls["http"]),
-        )
-
-        socks5_list = [f"socks5://{p.strip()}" for p in socks5_req.text.strip().split("\n")[-50:] if p.strip()]
-        http_list   = [f"http://{p.strip()}"   for p in http_req.text.strip().split("\n")[-50:] if p.strip()]
-        candidates = socks5_list + http_list
-
-    for proxy in random.sample(candidates, len(candidates)):
-        try:
-            async with httpx.AsyncClient(proxy=proxy, timeout=5) as pclient:
-                r = await pclient.get("https://httpbin.org/ip")
-                if r.status_code == 200:
-                    return proxy
-        except Exception:
-            continue
-    return None
 
 
 @Client.on_message(filters=Filter.command(["yt", "youtube"]))
@@ -51,10 +22,7 @@ async def youtube_cmd(c: Client, message: types.Message):
         await message.reply_text("Please provide a valid URL.")
         return
 
-    is_yt_url = "youtube.com" in query.lower() or "youtu.be" in query.lower()
     reply = await message.reply_text("🔍 Preparing download...")
-
-
     output_template = str(DOWNLOAD_PATH / "%(title).80s.%(ext)s")
 
     format_selector = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best"
@@ -83,19 +51,6 @@ async def youtube_cmd(c: Client, message: types.Message):
         "--print", "after_move:filepath",
         query
     ]
-
-    if is_yt_url:
-        cookie_file = "database/yt_cookies.txt"
-        if os.path.exists(cookie_file):
-            ytdlp_params += ["--cookies", cookie_file]
-        else:
-            await reply.edit_text("Selecting a working proxy...")
-            proxy = await get_working_proxy()
-            if not proxy:
-                await reply.edit_text("❌ No working proxies found.")
-                return
-            if proxy:
-                ytdlp_params += ["--proxy", proxy]
 
     proc = await asyncio.create_subprocess_exec(
         *ytdlp_params,
