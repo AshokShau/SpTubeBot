@@ -30,7 +30,7 @@ SAVE_SNAP_PATTERNS = [
 
     # Pinterest
     re.compile(
-        r"(?i)https?://(?:www\.|[a-z]{2}\.)?pinterest\.[a-z.]+/pin/\d+/?"
+        r"(?i)https?://(?:www\.|[a-z]{2}\.)?(?:pinterest\.[a-z.]+/pin/\d+|pin\.it/[\w-]+)/?"
     ),
 
     # Twitter / X
