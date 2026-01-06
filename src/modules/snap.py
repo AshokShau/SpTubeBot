@@ -59,22 +59,43 @@ async def _send_media_album(
     media_type: str,
     caption: str = None,
 ) -> Optional[types.Error]:
-    parse_caption = await client.parseTextEntities(caption, types.TextParseModeHTML())
-    if isinstance(parse_caption, types.Error):
-        client.logger.warning(f"Failed to parse caption: {parse_caption.message}")
-        parse_caption = await client.parseTextEntities("#FA", types.TextParseModeHTML())
+    parsed_caption = await client.parseTextEntities(caption, types.TextParseModeHTML())
+    if isinstance(parsed_caption, types.Error):
+        client.logger.warning(f"Failed to parse caption: {parsed_caption.message}")
+        parsed_caption = None
 
     input_contents = []
-    for url in media_urls:
+    for idx, url in enumerate(media_urls):
         input_file = types.InputFileRemote(url)
+        caption_to_use = parsed_caption if idx == 0 else None
         if media_type == "photo":
-            input_contents.append(types.InputMessagePhoto(photo=input_file, caption=parse_caption))
+            input_contents.append(
+                types.InputMessagePhoto(
+                    photo=input_file,
+                    caption=caption_to_use,
+                )
+            )
         elif media_type == "video":
-            input_contents.append(types.InputMessageVideo(video=input_file, caption=parse_caption))
+            input_contents.append(
+                types.InputMessageVideo(
+                    video=input_file,
+                    caption=caption_to_use,
+                )
+            )
         elif media_type == "animation":
-            input_contents.append(types.InputMessageAnimation(animation=input_file, caption=parse_caption))
+            input_contents.append(
+                types.InputMessageAnimation(
+                    animation=input_file,
+                    caption=caption_to_use,
+                )
+            )
         elif media_type == "audio":
-            input_contents.append(types.InputMessageAudio(audio=input_file, caption=parse_caption))
+            input_contents.append(
+                types.InputMessageAudio(
+                    audio=input_file,
+                    caption=caption_to_use,
+                )
+            )
         else:
             return types.Error(message="Unsupported media type")
 
@@ -82,11 +103,13 @@ async def _send_media_album(
         chat_id=message.chat_id,
         input_message_contents=input_contents,
         reply_to=types.InputMessageReplyToMessage(message_id=message.id),
-        # options=types.MessageSendOptions()
     )
 
     if isinstance(result, types.Error):
-        client.logger.warning(f"❌ Media album upload failed: {result.message} \ntype: {media_type}")
+        client.logger.warning(
+            f"❌ Media album upload failed: {result.message} \n"
+            f"type: {media_type}"
+        )
         return result
 
     return None
