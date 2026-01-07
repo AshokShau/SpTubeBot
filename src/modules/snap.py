@@ -167,14 +167,14 @@ async def process_insta_query(client: Client, message: types.Message, query: str
 
     # --- Handle Audio ---
     if api_data.audios:
-      audio_urls = [a.url for a in api_data.audios if a.url]
-      for batch in batch_chunks(audio_urls, 10):
-          if error := await (
-              _handle_media_upload(client, message, audio_urls[0], "audio", reply, caption)
-              if len(audio_urls) == 1
-              else _send_media_album(client, message, batch, "audio", caption)
-          ):
-              client.logger.warning(f"❌ Failed to send audio(s): {error.message}")
+        audio_urls = [a.url for a in api_data.audios if a.url]
+        for batch in batch_chunks(audio_urls, 10):
+            if error := await (
+                    _handle_media_upload(client, message, batch[0], "audio", reply, caption)
+                    if len(batch) == 1
+                    else _send_media_album(client, message, batch, "audio", caption)
+            ):
+                client.logger.warning(f"❌ Failed to send audio(s): {error.message}")
 
     # --- Handle Videos ---
     if api_data.videos:

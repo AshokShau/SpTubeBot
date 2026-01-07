@@ -73,7 +73,7 @@ async def process_track_media(c: Client, track:  'TrackResponse', chat_id: Optio
         elif isinstance(public_msg.content, types.MessageVideo):
             audio = types.InputFileRemote(public_msg.content.video.video.remote.id)
         else:
-            return types.Error(message="No audio file in t.me link: {audio_file}")
+            return types.Error(message=f"No audio file in t.me link: {audio_file}")
     else:
         audio = types.InputFileLocal(audio_file)
 

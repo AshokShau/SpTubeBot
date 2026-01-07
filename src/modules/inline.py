@@ -48,7 +48,7 @@ async def inline_search(c: Client, message: types.UpdateNewInlineQuery):
 
         parse = await c.parseTextEntities(display_text, types.TextParseModeHTML())
         if isinstance(parse, types.Error):
-            c.logger.warning(f"❌ Error parsing inline result for {track.name}: {parse.message}")
+            c.logger.warning(f"❌ Error parsing inline result for {track.title}: {parse.message}")
             continue
 
         reply_markup = get_reply_markup(track.title, track.channel)
