@@ -10,7 +10,7 @@ dependencies = [
     "orjson~=3.11.5",
     "pycryptodome~=3.23.0",
     "pydantic~=2.12.5",
-    "pymongo~=4.15.5",
+    "pymongo~=4.16.0",
     "pytdbot==0.9.9",
     "tdjson==1.8.60",
     "ujson~=5.11.0",

@@ -144,7 +144,9 @@ class ApiData:
                 return model(results=items)
             return model(**data)
         except httpx.HTTPStatusError as e:
-            return types.Error(message=f"Request failed: {e.response.status_code}")
+            error_data = e.response.json()
+            api_message = error_data.get("message") or "Unknown error"
+            return types.Error(message=f"Request failed: {api_message}")
         except httpx.RequestError as e:
             return types.Error(message=f"HTTP error: {e}")
         except (ValueError, TypeError) as e:

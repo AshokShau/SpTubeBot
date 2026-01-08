@@ -114,35 +114,6 @@ async def _send_media_album(
 
     return None
 
-
-@Client.on_message(filters=Filter.command("insta"))
-@fsub
-async def insta_cmd(client: Client, message: types.Message) -> None:
-    parts = message.text.split(" ", 1)
-    if len(parts) < 2 or not parts[1].strip():
-        await message.reply_text("Please provide a valid search query.")
-        return None
-
-    api = ApiData(parts[1].strip())
-    valid_url = api.extract_save_snap_url()
-    if not valid_url:
-        await message.reply_text("Please provide a valid search query.")
-        return None
-
-    await process_insta_query(client, message, valid_url)
-    raise StopHandlers
-
-@Client.on_message(filters=Filter.save_snap())
-@fsub
-async def insta_autodetect(client: Client, message: types.Message):
-    api = ApiData(message.text.strip())
-    valid_url = api.extract_save_snap_url()
-    if not valid_url:
-        return None
-    await process_insta_query(client, message, valid_url)
-    raise StopHandlers
-
-
 async def process_insta_query(client: Client, message: types.Message, query: str) -> None:
     reply = await message.reply_text("⏳ Processing...")
     api = ApiData(query)
@@ -225,3 +196,30 @@ async def process_insta_query(client: Client, message: types.Message, query: str
 
     await reply.delete()
     return
+
+@Client.on_message(filters=Filter.command("insta"))
+@fsub
+async def insta_cmd(client: Client, message: types.Message) -> None:
+    parts = message.text.split(" ", 1)
+    if len(parts) < 2 or not parts[1].strip():
+        await message.reply_text("Please provide a valid search query.")
+        return None
+
+    api = ApiData(parts[1].strip())
+    valid_url = api.extract_save_snap_url()
+    if not valid_url:
+        await message.reply_text("Please provide a valid search query.")
+        return None
+
+    await process_insta_query(client, message, valid_url)
+    raise StopHandlers
+
+@Client.on_message(filters=Filter.save_snap())
+@fsub
+async def insta_autodetect(client: Client, message: types.Message):
+    api = ApiData(message.text.strip())
+    valid_url = api.extract_save_snap_url()
+    if not valid_url:
+        return None
+    await process_insta_query(client, message, valid_url)
+    raise StopHandlers
