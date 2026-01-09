@@ -98,5 +98,5 @@ async def callback_query(c: Client, message: types.UpdateNewCallbackQuery):
     )
 
     if isinstance(reply, types.Error):
-        c.logger.error(f"Failed to send audio file: {reply.message}")
+        c.logger.error(f"Failed to send audio file: {reply.message}: {audio}")
         await msg.edit_text(f"Failed to send the song. Please try again later.\n{reply.message}")
