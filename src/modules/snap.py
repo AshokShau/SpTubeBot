@@ -14,6 +14,7 @@ from ._utils import has_audio_stream
 def batch_chunks(items: List[str], size: int = 10) -> List[List[str]]:
     return [items[i:i + size] for i in range(0, len(items), size)]
 
+
 async def _handle_media_upload(
     client: Client,
     message: types.Message,
@@ -122,7 +123,12 @@ async def process_insta_query(client: Client, message: types.Message, query: str
         await reply.edit_text(f"❌ Error: {api_data.message if api_data else 'No results found'}")
         return
 
-    caption = html.escape(api_data.title) or "#FA"
+    raw_caption = api_data.title or "#FA"
+    if len(raw_caption) >= 1000:
+        raw_caption = raw_caption[:1000] + "..."
+
+    caption = html.escape(raw_caption)
+
     # --- Handle Images ---
     if api_data.images:
         for batch in batch_chunks(api_data.images, 10):
