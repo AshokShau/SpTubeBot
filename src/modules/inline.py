@@ -87,14 +87,20 @@ async def inline_result(c: Client, message: types.UpdateNewChosenInlineResult):
         parsed = urlparse(url)
         parts = parsed.path.strip("/").split("/")
         if len(parts) >= 2 and parts[0] == "track":
-            if file_id := await db.get_song_file_id(parts[1]):
+
+
+            if result := await db.get_song_file_id(parts[1]):
+                file_id, caption = result
                 audio = types.InputFileRemote(file_id)
-                reply = await c.editInlineMessageMedia(inline_message_id=inline_message_id, input_message_content=types.InputMessageAudio(audio=audio))
+                reply = await c.editInlineMessageMedia(inline_message_id=inline_message_id, input_message_content=types.InputMessageAudio(audio=audio, caption=caption))
                 if isinstance(reply, types.Error):
                     c.logger.error(f"Failed to send audio file: {reply.message}")
-                    parsed_status = await c.parseTextEntities(f"Failed to send the song. Please try again later.{reply.message}", types.TextParseModeHTML())
-                    await c.editInlineMessageText(inline_message_id=inline_message_id, input_message_content=types.InputMessageText(parsed_status))
+                    parsed_status = await c.parseTextEntities(
+                        f"Failed to send the song. Please try again later.{reply.message}", types.TextParseModeHTML())
+                    await c.editInlineMessageText(inline_message_id=inline_message_id,
+                                                  input_message_content=types.InputMessageText(parsed_status))
                 return
+
 
     api = ApiData(url)
     if api.is_save_snap_url():

@@ -87,35 +87,36 @@ class MongoDB:
             return song["link"]
         return None
 
-    async def get_song_file_id(self, track_id: str) -> Optional[str]:
+    async def get_song_file_id(self, track_id: str) -> tuple[Optional[str], Optional[types.FormattedText]]:
         """Retrieve the Telegram file ID for a stored song link."""
         from src import client
 
         link = await self.get_song_link(track_id)
         if not link:
-            return None
+            return None, None
 
         info = await client.getMessageLinkInfo(url=link)
         if isinstance(info, types.Error) or not info.message:
             client.logger.warning(f"❌ Failed to get message link info: {getattr(info, 'message', info)}")
-            return None
+            return None, None
 
         msg = await client.getMessage(info.chat_id, info.message.id)
         if isinstance(msg, types.Error):
             client.logger.warning(f"❌ Failed to get message: {msg.message}")
-            return None
+            return None, None
 
         content = msg.content
+        text = content.caption
         if isinstance(content, types.MessageAudio):
-            return content.audio.audio.remote.id
+            return content.audio.audio.remote.id, text
         elif isinstance(content, types.MessageDocument):
-            return content.document.document.remote.id
+            return content.document.document.remote.id, text
         elif isinstance(content, types.MessageVideo):
-            return content.video.video.remote.id
+            return content.video.video.remote.id, text
 
         client.logger.warning(f"❌ Unsupported media type in stored link: {content}")
         await self.remove_song(track_id)
-        return None
+        return None, text
 
     async def upload_song_and_get_file_id(
             self, file_path: str, cover: Optional[str], track: Spotify
