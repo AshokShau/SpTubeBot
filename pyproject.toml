@@ -11,7 +11,7 @@ dependencies = [
     "pycryptodome~=3.23.0",
     "pydantic~=2.12.5",
     "pymongo~=4.16.0",
-    "pytdbot==0.9.9",
+    "pytdbot==0.9.10.dev0",
     "tdjson==1.8.60",
     "ujson~=5.11.0",
     "yt-dlp~=2025.12.8",
@@ -27,8 +27,9 @@ start = "src.__main__:main"
 [tool.uv]
 package = true
 
-[tool.uv.sources]
-pytdbot = { git = "https://github.com/pytdbot/client", rev = "main" }
+[tool.uv.sources.pytdbot]
+git = "https://github.com/pytdbot/client"
+rev = "main"
 
 [tool.setuptools]
 packages = [
