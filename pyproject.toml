@@ -7,14 +7,14 @@ dependencies = [
     "httpx~=0.28.1",
     "meval~=2.5",
     "mutagen>=1.47.0",
-    "orjson~=3.11.5",
+    "orjson~=3.11.6",
     "pycryptodome~=3.23.0",
     "pydantic~=2.12.5",
     "pymongo~=4.16.0",
     "pytdbot==0.9.10.dev0",
     "tdjson==1.8.60",
     "ujson~=5.11.0",
-    "yt-dlp~=2025.12.8",
+    "yt-dlp~=2026.1.31",
     "python-decouple~=3.8",
 ]
 
