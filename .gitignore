@@ -1,6 +1,5 @@
-/.idea
+.idea
 .env
-__pycache__/
-database/
-sptubebot.egg-info/
-cookies.txt
+db_*
+libtdjson.so.*
+*.log

@@ -1,4 +1,4 @@
 **
-!*.py
-!src
-!pyproject.toml
+!go.*
+!*.go
+!internal

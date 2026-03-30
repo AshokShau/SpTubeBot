@@ -1,0 +1,4 @@
+services:
+  sp-tube:
+    build: .
+    env_file: .env
