@@ -2,6 +2,7 @@ package httpx
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -14,6 +15,7 @@ import (
 const (
 	CatboxAPI    = "https://catbox.moe/user/api.php"
 	LitterboxAPI = "https://litterbox.catbox.moe/resources/internals/api.php"
+	UserAgent    = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 )
 
 // UploadToCatbox uploads a file to Catbox.
@@ -24,33 +26,31 @@ func UploadToCatbox(filePath, userhash string) (string, error) {
 	}
 	defer file.Close()
 
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
+	r, w := io.Pipe()
+	writer := multipart.NewWriter(w)
 
-	_ = writer.WriteField("reqtype", "fileupload")
-	if userhash != "" {
-		_ = writer.WriteField("userhash", userhash)
-	}
+	go func() {
+		defer w.Close()
+		defer writer.Close()
 
-	part, err := writer.CreateFormFile("fileToUpload", filepath.Base(filePath))
-	if err != nil {
-		return "", err
-	}
-	_, err = io.Copy(part, file)
-	if err != nil {
-		return "", err
-	}
+		_ = writer.WriteField("reqtype", "fileupload")
+		if userhash != "" {
+			_ = writer.WriteField("userhash", userhash)
+		}
 
-	err = writer.Close()
-	if err != nil {
-		return "", err
-	}
+		part, err := writer.CreateFormFile("fileToUpload", filepath.Base(filePath))
+		if err != nil {
+			return
+		}
+		_, _ = io.Copy(part, file)
+	}()
 
-	req, err := http.NewRequest("POST", CatboxAPI, body)
+	req, err := http.NewRequest("POST", CatboxAPI, r)
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("User-Agent", UserAgent)
 
 	resp, err := catClient.Do(req)
 	if err != nil {
@@ -87,34 +87,32 @@ func UploadToLitterbox(filePath, timeStr string) (string, error) {
 	}
 	defer file.Close()
 
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
+	r, w := io.Pipe()
+	writer := multipart.NewWriter(w)
 
-	_ = writer.WriteField("reqtype", "fileupload")
-	if timeStr == "" {
-		timeStr = "24h"
-	}
-	_ = writer.WriteField("time", timeStr)
+	go func() {
+		defer w.Close()
+		defer writer.Close()
 
-	part, err := writer.CreateFormFile("fileToUpload", filepath.Base(filePath))
-	if err != nil {
-		return "", err
-	}
-	_, err = io.Copy(part, file)
-	if err != nil {
-		return "", err
-	}
+		_ = writer.WriteField("reqtype", "fileupload")
+		if timeStr == "" {
+			timeStr = "24h"
+		}
+		_ = writer.WriteField("time", timeStr)
 
-	err = writer.Close()
-	if err != nil {
-		return "", err
-	}
+		part, err := writer.CreateFormFile("fileToUpload", filepath.Base(filePath))
+		if err != nil {
+			return
+		}
+		_, _ = io.Copy(part, file)
+	}()
 
-	req, err := http.NewRequest("POST", LitterboxAPI, body)
+	req, err := http.NewRequest("POST", LitterboxAPI, r)
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("User-Agent", UserAgent)
 
 	resp, err := catClient.Do(req)
 	if err != nil {
@@ -145,6 +143,10 @@ func UploadToLitterbox(filePath, timeStr string) (string, error) {
 
 // DeleteCatboxFiles deletes files from Catbox.
 func DeleteCatboxFiles(files []string, userhash string) error {
+	if userhash == "" {
+		return errors.New("userhash is required")
+	}
+
 	data := fmt.Sprintf("reqtype=deletefiles&userhash=%s&files=%s", userhash, strings.Join(files, " "))
 	resp, err := client.Post(CatboxAPI, "application/x-www-form-urlencoded", strings.NewReader(data))
 	if err != nil {
@@ -167,6 +169,10 @@ func DeleteCatboxFiles(files []string, userhash string) error {
 
 // CreateCatboxAlbum creates an album on Catbox.
 func CreateCatboxAlbum(title, desc string, files []string, userhash string) (string, error) {
+	if userhash == "" {
+		return "", errors.New("userhash is required")
+	}
+
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
@@ -197,6 +203,10 @@ func CreateCatboxAlbum(title, desc string, files []string, userhash string) (str
 
 // EditCatboxAlbum edits an album on Catbox.
 func EditCatboxAlbum(short, title, desc string, files []string, userhash string) error {
+	if userhash == "" {
+		return errors.New("userhash is required")
+	}
+
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
@@ -223,6 +233,10 @@ func EditCatboxAlbum(short, title, desc string, files []string, userhash string)
 
 // AddToCatboxAlbum adds files to an album on Catbox.
 func AddToCatboxAlbum(short string, files []string, userhash string) error {
+	if userhash == "" {
+		return errors.New("userhash is required")
+	}
+
 	data := fmt.Sprintf("reqtype=addtoalbum&userhash=%s&short=%s&files=%s", userhash, short, strings.Join(files, " "))
 	resp, err := client.Post(CatboxAPI, "application/x-www-form-urlencoded", strings.NewReader(data))
 	if err != nil {
@@ -234,6 +248,10 @@ func AddToCatboxAlbum(short string, files []string, userhash string) error {
 
 // RemoveFromCatboxAlbum removes files from an album on Catbox.
 func RemoveFromCatboxAlbum(short string, files []string, userhash string) error {
+	if userhash == "" {
+		return errors.New("userhash is required")
+	}
+
 	data := fmt.Sprintf("reqtype=removefromalbum&userhash=%s&short=%s&files=%s", userhash, short, strings.Join(files, " "))
 	resp, err := client.Post(CatboxAPI, "application/x-www-form-urlencoded", strings.NewReader(data))
 	if err != nil {
@@ -245,6 +263,9 @@ func RemoveFromCatboxAlbum(short string, files []string, userhash string) error 
 
 // DeleteCatboxAlbum deletes an album on Catbox.
 func DeleteCatboxAlbum(short string, userhash string) error {
+	if userhash == "" {
+		return errors.New("userhash is required")
+	}
 	data := fmt.Sprintf("reqtype=deletealbum&userhash=%s&short=%s", userhash, short)
 	resp, err := client.Post(CatboxAPI, "application/x-www-form-urlencoded", strings.NewReader(data))
 	if err != nil {

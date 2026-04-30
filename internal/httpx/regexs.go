@@ -20,7 +20,7 @@ var SnapPatterns = map[string]*regexp.Regexp{
 	"KickClip": regexp.MustCompile(`(?i)https?:\/\/(?:www\.)?kick\.com\/[\w._-]+\/clips\/[\w-]+`),
 	"SoraAi":   regexp.MustCompile(`^https:\/\/sora\.chatgpt\.com\/p\/s_[0-9a-fA-F]{32}\?psh=[A-Za-z0-9\-_\.]+$`),
 	"SunoAi":   regexp.MustCompile(`^https:\/\/suno\.com\/song\/[0-9a-fA-F\-]{36}\/?$`),
-	"Reddit":   regexp.MustCompile(`(?i)https?:\/\/(?:www\.|m\.)?reddit\.com\/r\/[\w-]+\/comments\/[\w-]+\/.*`),
+	"Reddit":   regexp.MustCompile(`(?i)https?:\/\/(?:www\.|m\.)?reddit\.com\/r\/[\w-]+\/(?:comments\/[\w-]+\/.*|s\/[\w-]+)`),
 	"SnapChat": regexp.MustCompile(`(?i)https?:\/\/(?:www\.)?snapchat\.com\/.*`),
 }
 
