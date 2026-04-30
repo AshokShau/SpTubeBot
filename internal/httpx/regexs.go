@@ -38,4 +38,5 @@ var MusicPatterns = map[string]*regexp.Regexp{
 	"mxplayer":    regexp.MustCompile(`(?i)https?:\/\/(?:www\.)?mxplayer\.in\/(?:show|movie|shorts)\/.*`),
 	"TwitchVideo": regexp.MustCompile(`(?i)https?:\/\/(?:www\.|m\.)?twitch\.tv\/(?:videos|[\w._-]+\/video)\/\d+`),
 	"KickVideo":   regexp.MustCompile(`(?i)https?:\/\/(?:www\.)?kick\.com\/[\w._-]+\/videos\/[a-fA-F0-9-]+`),
+	"Bilibili":    regexp.MustCompile(`(?i)https?:\/\/(?:(?:www\.|m\.)?bilibili\.com\/(?:video\/(?:av\d+|BV[a-zA-Z0-9]+)|bangumi\/play\/(?:ep\d+|ss\d+)|audio\/au\d+)|b23\.tv\/[a-zA-Z0-9]+)`),
 }

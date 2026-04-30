@@ -53,7 +53,7 @@ func musicHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 		thumbInput = &gotdbot.InputThumbnail{Thumbnail: &gotdbot.InputFileRemote{Id: track.Thumbnail}}
 	}
 
-	if strings.ToLower(trackDetails.Platform) == "mxplayer" || strings.ToLower(trackDetails.Platform) == "twitch" || strings.ToLower(trackDetails.Platform) == "kick" {
+	if strings.ToLower(trackDetails.Platform) == "mxplayer" || strings.ToLower(trackDetails.Platform) == "twitch" || strings.ToLower(trackDetails.Platform) == "kick" || strings.ToLower(trackDetails.Platform) == "bilibili" {
 		_, err = m.ReplyPhoto(c, &gotdbot.InputFileRemote{Id: track.Thumbnail}, &gotdbot.SendPhotoOpts{
 			Caption: caption,
 			ReplyMarkup: gotdbot.ReplyMarkupInlineKeyboard{
