@@ -32,6 +32,8 @@ func LoadCmd(d *gotdbot.Dispatcher, m *gotdbot.ClientManager, cfg *config.Config
 	d.AddHandler(handlers.NewCommand("catbox", catboxHandler))
 	d.AddHandler(handlers.NewCommand("tgm", catboxHandler))
 	d.AddHandler(handlers.NewCommand("litterbox", litterboxHandler))
+	d.AddHandler(handlers.NewCommand("block", blockHandler))
+	d.AddHandler(handlers.NewCommand("unblock", unblockHandler))
 
 	d.AddHandler(handlers.NewUpdateNewInlineQuery(nil, handleInlineQuery))
 	d.AddHandler(handlers.NewUpdateNewInlineCallbackQuery(nil, handleInlineCallbackQuery))
@@ -69,6 +71,11 @@ func LoadCmd(d *gotdbot.Dispatcher, m *gotdbot.ClientManager, cfg *config.Config
 
 		return false
 	}, func(c *gotdbot.Client, ctx *gotdbot.Context) error {
+		senderID := ctx.EffectiveMessage.SenderID()
+		if senderID != globalConfig.OwnerId && (database.IsBlacklisted(c.Me.Id, senderID) || database.IsBlacklisted(c.Me.Id, ctx.EffectiveChatId)) {
+			return gotdbot.EndGroups
+		}
+
 		text := ctx.EffectiveMessage.GetText()
 
 		if httpx.YouTubeShortsPattern.MatchString(text) || httpx.YouTubePattern.MatchString(text) || httpx.YouTubePostPattern.MatchString(text) {
@@ -123,7 +130,7 @@ func LoadCmd(d *gotdbot.Dispatcher, m *gotdbot.ClientManager, cfg *config.Config
 		log := c.Logger.With("bot_id", u.BotUserId, "owner_id", u.UserId)
 		log.Info("Managed bot updated")
 
-		botToken, err := c.GetBotToken(u.BotUserId, &gotdbot.GetBotTokenOpts{})
+		botToken, err := c.GetManagedBotToken(u.BotUserId, nil)
 		if err != nil {
 			log.Error("Failed to get token for managed bot", "error", err)
 			return nil
@@ -162,13 +169,15 @@ func LoadCmd(d *gotdbot.Dispatcher, m *gotdbot.ClientManager, cfg *config.Config
 
 	d.AddHandlerToGroup(handlers.NewUpdateNewMessage(nil, func(c *gotdbot.Client, ctx *gotdbot.Context) error {
 		msg := ctx.EffectiveMessage
-		if msg == nil {
-			return nil
+		senderID := msg.SenderID()
+		if senderID != globalConfig.OwnerId && (database.IsBlacklisted(c.Me.Id, senderID) || database.IsBlacklisted(c.Me.Id, ctx.EffectiveChatId)) {
+			return gotdbot.EndGroups
 		}
 
 		go database.AddUserOrChat(c.Me.Id, ctx.EffectiveChatId, msg.IsPrivate())
 		return nil
 	}), -1)
+
 }
 
 // isClientRunning checks whether a bot with the given ID is already registered and running.

@@ -18,6 +18,8 @@ func musicHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 		return nil
 	}
 
+	c.Logger.Info("Music download request", "user_id", m.SenderID(), "chat_id", m.ChatId, "url", targetUrl)
+
 	botId := c.Me.Id
 
 	reply, err := m.ReplyText(c, "⏳ Processing Music...", nil)

@@ -1,6 +1,6 @@
 package main
 
-//go:generate go run github.com/AshokShau/gotdbot/scripts/tools@latest
+//go:generate go run github.com/AshokShau/gotdbot/scripts/tools
 
 import (
 	"log"
@@ -26,7 +26,7 @@ func main() {
 
 	httpx.Init(cfg.ApiKey, cfg.ApiUrl)
 
-	manager := gotdbot.NewClientManager("./libtdjson.so.1.8.63")
+	manager := gotdbot.NewClientManager("./libtdjson.so.1.8.64")
 	dispatcher := gotdbot.NewDispatcher(nil)
 	commands.LoadCmd(dispatcher, manager, cfg)
 

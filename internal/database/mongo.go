@@ -29,15 +29,19 @@ type BotStats struct {
 }
 
 var (
-	client          *mongo.Client
-	collection      *mongo.Collection
-	statsCollection *mongo.Collection
-	botToOwner      = make(map[int64]int64)
-	ownersMu        sync.RWMutex
+	client              *mongo.Client
+	collection          *mongo.Collection
+	statsCollection     *mongo.Collection
+	blacklistCollection *mongo.Collection
+	botToOwner          = make(map[int64]int64)
+	ownersMu            sync.RWMutex
 
 	trackedUsers = make(map[int64]map[int64]bool)
 	trackedChats = make(map[int64]map[int64]bool)
 	trackedMu    sync.RWMutex
+
+	blacklistedIDs = make(map[int64]map[int64]bool)
+	blacklistMu    sync.RWMutex
 )
 
 func Init(uri string) error {
@@ -50,8 +54,10 @@ func Init(uri string) error {
 	db := client.Database("noinoi")
 	collection = db.Collection("bots")
 	statsCollection = db.Collection("stats")
+	blacklistCollection = db.Collection("blacklist")
 
 	go preloadStats()
+	go preloadBlacklist()
 
 	return nil
 }
@@ -291,4 +297,77 @@ func GetGlobalStats() (totalBots int64, totalUsers int, totalChats int, totalSuc
 	totalUsers = len(allUsers)
 	totalChats = len(allChats)
 	return
+}
+
+func preloadBlacklist() {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	cursor, err := blacklistCollection.Find(ctx, bson.M{})
+	if err != nil {
+		return
+	}
+	defer cursor.Close(ctx)
+
+	blacklistMu.Lock()
+	defer blacklistMu.Unlock()
+
+	for cursor.Next(ctx) {
+		var b struct {
+			BotID    int64 `bson:"bot_id"`
+			EntityID int64 `bson:"entity_id"`
+		}
+		if err = cursor.Decode(&b); err != nil {
+			continue
+		}
+		if blacklistedIDs[b.BotID] == nil {
+			blacklistedIDs[b.BotID] = make(map[int64]bool)
+		}
+		blacklistedIDs[b.BotID][b.EntityID] = true
+	}
+}
+
+func BlacklistEntity(botID, entityID int64) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{"bot_id": botID, "entity_id": entityID}
+	update := bson.M{"$set": bson.M{"bot_id": botID, "entity_id": entityID}}
+	opts := options.UpdateOne().SetUpsert(true)
+
+	_, err := blacklistCollection.UpdateOne(ctx, filter, update, opts)
+	if err == nil {
+		blacklistMu.Lock()
+		if blacklistedIDs[botID] == nil {
+			blacklistedIDs[botID] = make(map[int64]bool)
+		}
+		blacklistedIDs[botID][entityID] = true
+		blacklistMu.Unlock()
+	}
+	return err
+}
+
+func WhitelistEntity(botID, entityID int64) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{"bot_id": botID, "entity_id": entityID}
+	_, err := blacklistCollection.DeleteOne(ctx, filter)
+	if err == nil {
+		blacklistMu.Lock()
+		if blacklistedIDs[botID] != nil {
+			delete(blacklistedIDs[botID], entityID)
+		}
+		blacklistMu.Unlock()
+	}
+	return err
+}
+
+func IsBlacklisted(botID, entityID int64) bool {
+	blacklistMu.RLock()
+	defer blacklistMu.RUnlock()
+	if blacklistedIDs[botID] == nil {
+		return false
+	}
+	return blacklistedIDs[botID][entityID]
 }

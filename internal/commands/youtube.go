@@ -109,6 +109,8 @@ func youtubeHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 		return nil
 	}
 
+	c.Logger.Info("YouTube download request (auto)", "user_id", m.SenderID(), "chat_id", m.ChatId, "url", url)
+
 	botId := c.Me.Id
 
 	reply, err := m.ReplyText(c, "⏳ Processing YouTube...", nil)
@@ -215,6 +217,8 @@ func ytCommandHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 		_, _ = m.ReplyText(c, "Usage: /yt <url>", nil)
 		return nil
 	}
+
+	c.Logger.Info("YouTube download request (command)", "user_id", m.SenderID(), "chat_id", m.ChatId, "url", url)
 
 	botId := c.Me.Id
 

@@ -13,6 +13,9 @@ import (
 func handleMyBots(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	cb := ctx.Update.UpdateNewCallbackQuery
 	userId := cb.SenderUserId
+	if userId != globalConfig.OwnerId && database.IsBlacklisted(c.Me.Id, userId) {
+		return gotdbot.EndGroups
+	}
 
 	bots, err := database.GetBotsByOwner(userId)
 	if err != nil {
@@ -61,6 +64,11 @@ func handleMyBots(c *gotdbot.Client, ctx *gotdbot.Context) error {
 
 func handleBotManage(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	cb := ctx.Update.UpdateNewCallbackQuery
+	senderID := cb.SenderUserId
+	if senderID != globalConfig.OwnerId && database.IsBlacklisted(c.Me.Id, senderID) {
+		return gotdbot.EndGroups
+	}
+
 	data := string(cb.Payload.(*gotdbot.CallbackQueryPayloadData).Data)
 	botIdStr := strings.TrimPrefix(data, "bot_")
 	botId, err := strconv.ParseInt(botIdStr, 10, 64)
@@ -105,6 +113,10 @@ func handleBotManage(c *gotdbot.Client, ctx *gotdbot.Context) error {
 
 func handleBotRevoke(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	cb := ctx.Update.UpdateNewCallbackQuery
+	if cb.SenderUserId != globalConfig.OwnerId && database.IsBlacklisted(c.Me.Id, cb.SenderUserId) {
+		return gotdbot.EndGroups
+	}
+
 	data := string(cb.Payload.(*gotdbot.CallbackQueryPayloadData).Data)
 	botIdStr := strings.TrimPrefix(data, "revoke_")
 	botId, err := strconv.ParseInt(botIdStr, 10, 64)
@@ -120,7 +132,7 @@ func handleBotRevoke(c *gotdbot.Client, ctx *gotdbot.Context) error {
 
 	_ = cb.Answer(c, 0, true, "revoking token ...", "")
 
-	newToken, err := c.GetBotToken(botId, &gotdbot.GetBotTokenOpts{Revoke: true})
+	newToken, err := c.GetManagedBotToken(botId, &gotdbot.GetManagedBotTokenOpts{Revoke: true})
 	if err != nil {
 		_, _ = cb.EditMessageText(c, fmt.Sprintf("Failed to revoke token: %v", err), nil)
 		return nil
@@ -156,6 +168,10 @@ func handleBotRevoke(c *gotdbot.Client, ctx *gotdbot.Context) error {
 
 func handleBotDelete(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	cb := ctx.Update.UpdateNewCallbackQuery
+	if cb.SenderUserId != globalConfig.OwnerId && database.IsBlacklisted(c.Me.Id, cb.SenderUserId) {
+		return gotdbot.EndGroups
+	}
+
 	data := string(cb.Payload.(*gotdbot.CallbackQueryPayloadData).Data)
 	botIdStr := strings.TrimPrefix(data, "delete_")
 	botId, err := strconv.ParseInt(botIdStr, 10, 64)
@@ -185,6 +201,10 @@ func handleBotDelete(c *gotdbot.Client, ctx *gotdbot.Context) error {
 
 func handleCloneBack(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	cb := ctx.Update.UpdateNewCallbackQuery
+	if cb.SenderUserId != globalConfig.OwnerId && database.IsBlacklisted(c.Me.Id, cb.SenderUserId) {
+		return gotdbot.EndGroups
+	}
+
 	_ = c.AnswerCallbackQuery(int32(cb.Id), cb.SenderUserId, strconv.FormatInt(cb.ChatInstance, 10), "", &gotdbot.AnswerCallbackQueryOpts{})
 
 	text := `Welcome to <b>NoiNoi Bot</b>! 🚀
