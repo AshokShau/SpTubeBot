@@ -107,8 +107,13 @@ func handleInlineQuery(c *td.Client, ctx *td.Context) error {
 		return nil
 	}
 
+	totalItems := len(mediaList)
+	if len(mediaList) > 50 {
+		mediaList = mediaList[:50]
+	}
+
 	for i, media := range mediaList {
-		markup := createNavigationMarkup(urlHash, i, len(mediaList))
+		markup := createNavigationMarkup(urlHash, i, totalItems)
 		id := fmt.Sprintf("snap_%s_%d", urlHash, i)
 
 		var result td.InputInlineQueryResult
