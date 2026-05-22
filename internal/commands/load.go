@@ -36,6 +36,7 @@ func LoadCmd(d *gotdbot.Dispatcher, m *gotdbot.ClientManager, cfg *config.Config
 	d.AddHandler(handlers.NewCommand("unblock", unblockHandler))
 
 	d.AddHandler(handlers.NewUpdateNewInlineQuery(nil, handleInlineQuery))
+	d.AddHandler(handlers.NewUpdateNewGuestQuery(nil, handleGuestQuery))
 	d.AddHandler(handlers.NewUpdateNewInlineCallbackQuery(nil, handleInlineCallbackQuery))
 
 	d.AddHandler(handlers.NewUpdateNewMessage(func(u *gotdbot.UpdateNewMessage) bool {

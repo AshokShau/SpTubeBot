@@ -153,6 +153,104 @@ func handleInlineQuery(c *td.Client, ctx *td.Context) error {
 	return c.AnswerInlineQuery(0, iq.Id, "", results, nil)
 }
 
+func handleGuestQuery(c *td.Client, ctx *td.Context) error {
+	u := ctx.Update.UpdateNewGuestQuery
+	var query string
+	if len(u.ReferenceMessages) > 0 {
+		query = u.ReferenceMessages[0].GetText()
+	} else if u.Message != nil {
+		query = u.Message.GetText()
+	}
+
+	if query == "" {
+		return nil
+	}
+
+	var targetUrl string
+	for _, pattern := range httpx.SnapPatterns {
+		if pattern.MatchString(query) {
+			targetUrl = pattern.FindString(query)
+			break
+		}
+	}
+
+	if targetUrl == "" {
+		return nil
+	}
+
+	snapData, err := httpx.GetSnap(targetUrl)
+	if err != nil {
+		return nil
+	}
+
+	mediaList := getAllMedia(snapData)
+	if len(mediaList) == 0 {
+		return nil
+	}
+
+	urlHash := setCachedURL(targetUrl)
+	caption := "Join @FallenProjects"
+
+	media := mediaList[0]
+	markup := createNavigationMarkup(urlHash, 0, len(mediaList))
+	id := fmt.Sprintf("snap_%s_%d", urlHash, 0)
+	thumb := media.Thumbnail
+	if thumb == "" {
+		thumb = "https://placehold.co/200x200/png?text=No+Thumbnail"
+	}
+
+	var result td.InputInlineQueryResult
+	if media.Type == "video" || media.Type == "animation" {
+		result = &td.InputInlineQueryResultVideo{
+			Id:           id,
+			Title:        snapData.Title,
+			VideoUrl:     media.URL,
+			MimeType:     "video/mp4",
+			ThumbnailUrl: thumb,
+			ReplyMarkup:  markup,
+			InputMessageContent: &td.InputMessageVideo{
+				Video: &td.InputFileRemote{Id: media.URL},
+				Caption: &td.FormattedText{
+					Text: caption,
+				},
+			},
+		}
+	} else {
+		result = &td.InputInlineQueryResultPhoto{
+			Id:           id,
+			Title:        snapData.Title,
+			PhotoUrl:     media.URL,
+			ThumbnailUrl: thumb,
+			ReplyMarkup:  markup,
+			InputMessageContent: &td.InputMessagePhoto{
+				Photo: &td.InputFileRemote{Id: media.URL},
+				Caption: &td.FormattedText{
+					Text: caption,
+				},
+			},
+		}
+	}
+
+	_, err = c.AnswerGuestQuery(u.Id, result)
+	if err != nil {
+		c.Logger.Error("Failed to answer guest query", "error", err)
+		errorResult := &td.InputInlineQueryResultArticle{
+			Id:    strconv.FormatInt(time.Now().UnixNano(), 10),
+			Title: "Error occurred",
+			InputMessageContent: &td.InputMessageText{
+				Text: &td.FormattedText{
+					Text: fmt.Sprintf("An error occurred while processing your request: %v", err),
+				},
+			},
+			Description: err.Error(),
+		}
+		_, _ = c.AnswerGuestQuery(u.Id, errorResult)
+		return err
+	}
+
+	return nil
+}
+
 func handleInlineCallbackQuery(c *td.Client, ctx *td.Context) error {
 	icq := ctx.Update.UpdateNewInlineCallbackQuery
 	if isRateLimited(icq.SenderUserId) {
