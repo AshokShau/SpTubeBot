@@ -91,7 +91,7 @@ To clone the bot:
 
 - **Repository**: [https://github.com/FallenProjects/SpTubeBot](https://github.com/FallenProjects/SpTubeBot)
 - **Support**: [Join @FallenProjects](https://t.me/FallenProjects)
-- **API**: [https://api.fallenapi.fun](https://api.fallenapi.fun)
+- **API**: [https://api.onegrab.fun](https://api.fallenapi.fun)
 
 ## License
 

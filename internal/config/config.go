@@ -10,10 +10,10 @@ import (
 )
 
 type Config struct {
-	ApiId   int32
-	ApiHash string
-	ApiKey  string
-	ApiUrl  string
+	ApiId          int32
+	ApiHash        string
+	ApiKey         string
+	ApiUrl         string
 	Token          string
 	OwnerId        int64
 	MongoUri       string
@@ -53,7 +53,7 @@ func Load() (*Config, error) {
 
 	cfg.ApiUrl = os.Getenv("API_URL")
 	if cfg.ApiUrl == "" {
-		cfg.ApiUrl = "https://api.fallenapi.fun"
+		cfg.ApiUrl = "https://api.onegrab.fun"
 	}
 
 	ownerId := os.Getenv("OWNER_ID")
