@@ -9,8 +9,7 @@ import (
 	"github.com/AshokShau/gotdbot"
 )
 
-func statsHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
-	m := ctx.EffectiveMessage
+func statsHandler(c *gotdbot.Client, m *gotdbot.Message) error {
 	botId := c.Me.Id
 	ownerId, ok := database.GetOwner(botId)
 

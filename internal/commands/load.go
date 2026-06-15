@@ -10,42 +10,62 @@ import (
 	"time"
 
 	"github.com/AshokShau/gotdbot"
-	"github.com/AshokShau/gotdbot/handlers"
 )
 
 var (
 	startTime    = time.Now()
-	manager      *gotdbot.ClientManager
 	globalConfig *config.Config
+	manager      *gotdbot.ClientManager
 )
 
-func LoadCmd(d *gotdbot.Dispatcher, m *gotdbot.ClientManager, cfg *config.Config) {
-	manager = m
+func SetupHandlers(c *gotdbot.Client, m *gotdbot.ClientManager, cfg *config.Config) {
 	globalConfig = cfg
-	d.AddHandler(handlers.NewCommand("ping", pingHandler))
-	d.AddHandler(handlers.NewCommand("start", startHandler))
-	d.AddHandler(handlers.NewCommand("help", startHandler))
-	d.AddHandler(handlers.NewCommand("yt", ytCommandHandler))
-	d.AddHandler(handlers.NewCommand("math", mathHandler))
-	d.AddHandler(handlers.NewCommand("stop", stopHandler))
-	d.AddHandler(handlers.NewCommand("stats", statsHandler))
-	d.AddHandler(handlers.NewCommand("catbox", catboxHandler))
-	d.AddHandler(handlers.NewCommand("tgm", catboxHandler))
-	d.AddHandler(handlers.NewCommand("litterbox", litterboxHandler))
-	d.AddHandler(handlers.NewCommand("block", blockHandler))
-	d.AddHandler(handlers.NewCommand("unblock", unblockHandler))
+	manager = m
 
-	d.AddHandler(handlers.NewUpdateNewInlineQuery(nil, handleInlineQuery))
-	d.AddHandler(handlers.NewUpdateNewGuestQuery(nil, handleGuestQuery))
-	d.AddHandler(handlers.NewUpdateNewInlineCallbackQuery(nil, handleInlineCallbackQuery))
+	c.OnCommand("ping", pingHandler)
+	c.OnCommand("start", startHandler)
+	c.OnCommand("help", startHandler)
+	c.OnCommand("yt", ytCommandHandler)
+	c.OnCommand("math", mathHandler)
+	c.OnCommand("stop", stopHandler)
+	c.OnCommand("stats", statsHandler)
+	c.OnCommand("catbox", catboxHandler)
+	c.OnCommand("tgm", catboxHandler)
+	c.OnCommand("litterbox", litterboxHandler)
+	c.OnCommand("block", blockHandler)
+	c.OnCommand("unblock", unblockHandler)
 
-	d.AddHandler(handlers.NewUpdateNewMessage(func(u *gotdbot.UpdateNewMessage) bool {
-		msg := u.Message
-		if msg == nil {
-			return false
+	c.OnUpdateNewInlineQuery(handleInlineQuery, nil)
+	c.OnUpdateNewInlineCallbackQuery(handleInlineCallbackQuery, nil)
+	c.OnUpdateNewGuestQuery(handleGuestQuery, nil)
+
+	c.OnMessage(func(c *gotdbot.Client, msg *gotdbot.Message) error {
+		senderID := msg.SenderID()
+		if senderID != globalConfig.OwnerId && (database.IsBlacklisted(c.Me.Id, senderID) || database.IsBlacklisted(c.Me.Id, msg.ChatId)) {
+			return gotdbot.EndGroups
 		}
 
-		if msg.IsCommand() {
+		text := msg.GetText()
+
+		if httpx.YouTubeShortsPattern.MatchString(text) || httpx.YouTubePattern.MatchString(text) || httpx.YouTubePostPattern.MatchString(text) {
+			return youtubeHandler(c, msg)
+		}
+
+		for _, pattern := range httpx.SnapPatterns {
+			if pattern.MatchString(text) {
+				return snapHandler(c, msg)
+			}
+		}
+
+		for _, pattern := range httpx.MusicPatterns {
+			if pattern.MatchString(text) {
+				return musicHandler(c, msg)
+			}
+		}
+
+		return gotdbot.EndGroups
+	}, func(msg *gotdbot.Message) bool {
+		if msg == nil || msg.IsCommand() {
 			return false
 		}
 
@@ -71,63 +91,34 @@ func LoadCmd(d *gotdbot.Dispatcher, m *gotdbot.ClientManager, cfg *config.Config
 		}
 
 		return false
-	}, func(c *gotdbot.Client, ctx *gotdbot.Context) error {
-		senderID := ctx.EffectiveMessage.SenderID()
-		if senderID != globalConfig.OwnerId && (database.IsBlacklisted(c.Me.Id, senderID) || database.IsBlacklisted(c.Me.Id, ctx.EffectiveChatId)) {
-			return gotdbot.EndGroups
-		}
+	})
 
-		text := ctx.EffectiveMessage.GetText()
-
-		if httpx.YouTubeShortsPattern.MatchString(text) || httpx.YouTubePattern.MatchString(text) || httpx.YouTubePostPattern.MatchString(text) {
-			return youtubeHandler(c, ctx)
-		}
-
-		for _, pattern := range httpx.SnapPatterns {
-			if pattern.MatchString(text) {
-				return snapHandler(c, ctx)
-			}
-		}
-
-		for _, pattern := range httpx.MusicPatterns {
-			if pattern.MatchString(text) {
-				return musicHandler(c, ctx)
-			}
-		}
-
-		return gotdbot.EndGroups
-	}))
-
-	d.AddHandler(handlers.NewUpdateNewCallbackQuery(func(u *gotdbot.UpdateNewCallbackQuery) bool {
+	c.OnUpdateNewCallbackQuery(handleCloneCreate, func(u *gotdbot.UpdateNewCallbackQuery) bool {
 		return u.DataString() == "clone_create"
-	}, handleCloneCreate))
+	})
 
-	d.AddHandler(handlers.NewUpdateNewCallbackQuery(func(u *gotdbot.UpdateNewCallbackQuery) bool {
+	c.OnUpdateNewCallbackQuery(handleMyBots, func(u *gotdbot.UpdateNewCallbackQuery) bool {
 		return u.DataString() == "clone_mybots"
-	}, handleMyBots))
+	})
 
-	d.AddHandler(handlers.NewUpdateNewCallbackQuery(func(u *gotdbot.UpdateNewCallbackQuery) bool {
+	c.OnUpdateNewCallbackQuery(handleBotManage, func(u *gotdbot.UpdateNewCallbackQuery) bool {
 		return strings.HasPrefix(u.DataString(), "bot_")
-	}, handleBotManage))
+	})
 
-	d.AddHandler(handlers.NewUpdateNewCallbackQuery(func(u *gotdbot.UpdateNewCallbackQuery) bool {
+	c.OnUpdateNewCallbackQuery(handleBotRevoke, func(u *gotdbot.UpdateNewCallbackQuery) bool {
 		return strings.HasPrefix(u.DataString(), "revoke_")
-	}, handleBotRevoke))
+	})
 
-	d.AddHandler(handlers.NewUpdateNewCallbackQuery(func(u *gotdbot.UpdateNewCallbackQuery) bool {
+	c.OnUpdateNewCallbackQuery(handleBotDelete, func(u *gotdbot.UpdateNewCallbackQuery) bool {
 		return strings.HasPrefix(u.DataString(), "delete_")
-	}, handleBotDelete))
+	})
 
-	d.AddHandler(handlers.NewUpdateNewCallbackQuery(func(u *gotdbot.UpdateNewCallbackQuery) bool {
-		return string(u.Payload.(*gotdbot.CallbackQueryPayloadData).Data) == "clone_back"
-	}, handleCloneBack))
+	c.OnUpdateNewCallbackQuery(handleCloneBack, func(u *gotdbot.UpdateNewCallbackQuery) bool {
+		data := u.CallbackData()
+		return string(data) == "clone_back"
+	})
 
-	d.AddHandler(handlers.NewUpdateManagedBot(nil, func(c *gotdbot.Client, ctx *gotdbot.Context) error {
-		u := ctx.Update.UpdateManagedBot
-		if u == nil {
-			return nil
-		}
-
+	c.OnUpdateManagedBot(func(c *gotdbot.Client, u *gotdbot.UpdateManagedBot) error {
 		log := c.Logger.With("bot_id", u.BotUserId, "owner_id", u.UserId)
 		log.Info("Managed bot updated")
 
@@ -147,38 +138,38 @@ func LoadCmd(d *gotdbot.Dispatcher, m *gotdbot.ClientManager, cfg *config.Config
 			return nil
 		}
 
-		if isClientRunning(manager, u.BotUserId) {
+		if isClientRunning(m, u.BotUserId) {
 			log.Info("Managed bot is already running, skipping start")
 			return nil
 		}
 
 		clientConfig := gotdbot.DefaultClientConfig()
-		clientConfig.Dispatcher = c.Dispatcher
 		clientConfig.DatabaseDirectory = "db_" + strconv.FormatInt(u.BotUserId, 10)
 
-		newBot, err := manager.RegisterClient(cfg.ApiId, cfg.ApiHash, botToken.Text, clientConfig)
+		newBot, err := m.RegisterClient(cfg.ApiId, cfg.ApiHash, botToken.Text, clientConfig)
 		if err != nil {
 			log.Error("Failed to start managed clone bot", "error", err)
 			_, _ = c.SendTextMessage(u.UserId, "Your bot was created, but I failed to start the clone.", nil)
 			return nil
 		}
 
+		SetupHandlers(newBot, m, cfg)
+
 		username := newBot.Me.Usernames.EditableUsername
 		_, _ = c.SendTextMessage(u.UserId, fmt.Sprintf("Your clone bot %s (@%s) is now up and running! 🎉", newBot.Me.FirstName, username), nil)
 		return nil
-	}))
+	}, nil)
 
-	d.AddHandlerToGroup(handlers.NewUpdateNewMessage(nil, func(c *gotdbot.Client, ctx *gotdbot.Context) error {
-		msg := ctx.EffectiveMessage
+	c.AddUpdateNewMessageHandlerGroup(func(c *gotdbot.Client, m *gotdbot.UpdateNewMessage) error {
+		msg := m.Message
 		senderID := msg.SenderID()
-		if senderID != globalConfig.OwnerId && (database.IsBlacklisted(c.Me.Id, senderID) || database.IsBlacklisted(c.Me.Id, ctx.EffectiveChatId)) {
+		if senderID != globalConfig.OwnerId && (database.IsBlacklisted(c.Me.Id, senderID) || database.IsBlacklisted(c.Me.Id, msg.ChatId)) {
 			return gotdbot.EndGroups
 		}
 
-		go database.AddUserOrChat(c.Me.Id, ctx.EffectiveChatId, msg.IsPrivate())
-		return nil
-	}), -1)
-
+		go database.AddUserOrChat(c.Me.Id, msg.ChatId, msg.IsPrivate())
+		return gotdbot.ContinueGroups
+	}, nil, -1)
 }
 
 // isClientRunning checks whether a bot with the given ID is already registered and running.

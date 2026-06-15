@@ -16,8 +16,7 @@ type SnapMediaItem struct {
 	Thumbnail string
 }
 
-func snapHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
-	m := ctx.EffectiveMessage
+func snapHandler(c *gotdbot.Client, m *gotdbot.Message) error {
 	targetUrl := getUrl(m)
 	if targetUrl == "" {
 		return nil
@@ -249,13 +248,36 @@ func sendMediaAlbum(c *gotdbot.Client, m *gotdbot.Message, items []SnapMediaItem
 
 			switch mediaType {
 			case "photo":
-				contents = append(contents, &gotdbot.InputMessagePhoto{Photo: input, Caption: currentCaption})
+				contents = append(contents, &gotdbot.InputMessagePhoto{
+					Photo: &gotdbot.InputPhoto{
+						Photo: input,
+					},
+					Caption: currentCaption,
+				})
 			case "video":
-				contents = append(contents, &gotdbot.InputMessageVideo{Video: input, Caption: currentCaption, Thumbnail: thumb})
+				contents = append(contents, &gotdbot.InputMessageVideo{
+					Video: &gotdbot.InputVideo{
+						Video:     input,
+						Thumbnail: thumb,
+					},
+					Caption: currentCaption,
+				})
 			case "animation":
-				contents = append(contents, &gotdbot.InputMessageAnimation{Animation: input, Caption: currentCaption, Thumbnail: thumb})
+				contents = append(contents, &gotdbot.InputMessageAnimation{
+					Animation: &gotdbot.InputAnimation{
+						Animation: input,
+						Thumbnail: thumb,
+					},
+					Caption: currentCaption,
+				})
 			case "audio":
-				contents = append(contents, &gotdbot.InputMessageAudio{Audio: input, Caption: currentCaption, AlbumCoverThumbnail: thumb})
+				contents = append(contents, &gotdbot.InputMessageAudio{
+					Audio: &gotdbot.InputAudio{
+						Audio:               input,
+						AlbumCoverThumbnail: thumb,
+					},
+					Caption: currentCaption,
+				})
 			}
 		}
 
@@ -267,7 +289,7 @@ func sendMediaAlbum(c *gotdbot.Client, m *gotdbot.Message, items []SnapMediaItem
 	}
 
 	_, _, err := albumFunc(items, false)
-	if err != nil && strings.Contains(err.Error(), "WEBPAGE_CURL_FAILED") || err != nil && strings.Contains(err.Error(), "Group send failed") || err != nil && strings.Contains(err.Error(), "WEBPAGE_MEDIA_EMPTY") {
+	if err != nil && (strings.Contains(err.Error(), "WEBPAGE_CURL_FAILED") || strings.Contains(err.Error(), "Group send failed") || strings.Contains(err.Error(), "WEBPAGE_MEDIA_EMPTY")) {
 		var localItems []SnapMediaItem
 		var mainPaths []string
 		for _, item := range items {

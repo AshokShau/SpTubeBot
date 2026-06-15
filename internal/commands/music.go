@@ -11,8 +11,7 @@ import (
 	"github.com/AshokShau/gotdbot"
 )
 
-func musicHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
-	m := ctx.EffectiveMessage
+func musicHandler(c *gotdbot.Client, m *gotdbot.Message) error {
 	targetUrl := getUrl(m)
 	if targetUrl == "" {
 		return nil
@@ -58,10 +57,10 @@ func musicHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	if strings.ToLower(trackDetails.Platform) == "mxplayer" || strings.ToLower(trackDetails.Platform) == "twitch" || strings.ToLower(trackDetails.Platform) == "kick" || strings.ToLower(trackDetails.Platform) == "bilibili" {
 		_, err = m.ReplyPhoto(c, &gotdbot.InputFileRemote{Id: track.Thumbnail}, &gotdbot.SendPhotoOpts{
 			Caption: caption,
-			ReplyMarkup: gotdbot.ReplyMarkupInlineKeyboard{
+			ReplyMarkup: &gotdbot.ReplyMarkupInlineKeyboard{
 				Rows: [][]gotdbot.InlineKeyboardButton{
 					{
-						{Text: "Download", Type: gotdbot.InlineKeyboardButtonTypeUrl{Url: trackDetails.CdnURL}, Style: gotdbot.ButtonStylePrimary{}},
+						{Text: "Download", Type: &gotdbot.InlineKeyboardButtonTypeUrl{Url: trackDetails.CdnURL}},
 					},
 				},
 			},

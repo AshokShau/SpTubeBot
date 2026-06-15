@@ -6,7 +6,7 @@ import (
 	"github.com/AshokShau/gotdbot"
 )
 
-func startHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
+func startHandler(c *gotdbot.Client, m *gotdbot.Message) error {
 	username := c.Me.Usernames.EditableUsername
 	text := `Welcome to <b>NoiNoi Bot</b> 🚀
 
@@ -25,20 +25,19 @@ Join @FallenProjects for more bots & updates.`
 			{
 				{
 					Text:  "➕ Add me to your group",
-					Type:  gotdbot.InlineKeyboardButtonTypeUrl{Url: fmt.Sprintf("https://t.me/%s?startgroup=true", username)},
-					Style: gotdbot.ButtonStylePrimary{},
+					Type:  &gotdbot.InlineKeyboardButtonTypeUrl{Url: fmt.Sprintf("https://t.me/%s?startgroup=true", username)},
 				},
 			},
 		},
 	}
 
-	_, err := ctx.EffectiveMessage.ReplyText(c, text, &gotdbot.SendTextMessageOpts{
+	_, err := m.ReplyText(c, text, &gotdbot.SendTextMessageOpts{
 		ParseMode:   "HTML",
 		ReplyMarkup: replyMarkup,
 	})
 	return err
 }
 
-func cloneHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
+func cloneHandler(c *gotdbot.Client, m *gotdbot.Message) error {
 	return gotdbot.EndGroups
 }

@@ -35,20 +35,23 @@ func getYouTubeUrl(m *gotdbot.Message) (string, string) {
 	return "", ""
 }
 
-func downloadYouTube(url string, audioOnly bool) (string, string, string, string, error) {
+func downloadYouTube(url string, audioOnly bool) (string, string, string, int32, string, error) {
 	tempDir, err := os.MkdirTemp("", "ytdl_*")
 	if err != nil {
-		return "", "", "", "", err
+		return "", "", "", 0, "", err
 	}
 
-	outputTemplate := filepath.Join(tempDir, "%(title).200s.%(ext)s")
+	outputTemplate := filepath.Join(tempDir, "%(title).100s.%(ext)s")
 	thumbTemplate := filepath.Join(tempDir, "thumb.%(ext)s")
 
 	args := []string{
+		"--quiet",
+		"--no-warnings",
 		"--no-playlist",
 		"--match-filter", "duration <= 7200",
-		"--print", "%(title)s",
-		"--print", "after_move:%(filepath)s",
+		"--print", "TITLE:%(title)s",
+		"--print", "DURATION:%(duration)s",
+		"--print", "after_move:PATH:%(filepath)s",
 		"--write-thumbnail",
 		"--convert-thumbnails", "jpg",
 		"-o", outputTemplate,
@@ -73,33 +76,51 @@ func downloadYouTube(url string, audioOnly bool) (string, string, string, string
 
 	if strings.Contains(stderrStr, "does not pass filter") || strings.Contains(stdoutStr, "does not pass filter") {
 		os.RemoveAll(tempDir)
-		return "", "", "", "", fmt.Errorf("DURATION_EXCEEDED")
+		return "", "", "", 0, "", fmt.Errorf("DURATION_EXCEEDED")
 	}
 
 	if err != nil {
 		os.RemoveAll(tempDir)
-		return "", "", "", "", fmt.Errorf("failed to download: %v (stderr: %s)", err, stderrStr)
+		return "", "", "", 0, "", fmt.Errorf("failed to download: %v (stderr: %s)", err, stderrStr)
 	}
 
-	lines := strings.Split(strings.TrimSpace(stdoutStr), "\n")
-	if len(lines) < 2 {
+	title, duration, actualPath, err := parseYtDlpOutput(stdoutStr)
+	if err != nil {
 		os.RemoveAll(tempDir)
-		return "", "", "", "", fmt.Errorf("failed to extract title or path from output: %s", stdoutStr)
+		return "", "", "", 0, "", err
 	}
-
-	title := lines[0]
-	actualPath := lines[1]
 
 	thumbPath := filepath.Join(tempDir, "thumb.jpg")
 	if _, err := os.Stat(thumbPath); os.IsNotExist(err) {
 		thumbPath = ""
 	}
 
-	return actualPath, thumbPath, title, tempDir, nil
+	return actualPath, thumbPath, title, duration, tempDir, nil
 }
 
-func youtubeHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
-	m := ctx.EffectiveMessage
+func parseYtDlpOutput(stdout string) (string, int32, string, error) {
+	var title, path string
+	var duration int32
+	lines := strings.Split(stdout, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "TITLE:") {
+			title = strings.TrimPrefix(line, "TITLE:")
+		} else if strings.HasPrefix(line, "DURATION:") {
+			fmt.Sscanf(strings.TrimPrefix(line, "DURATION:"), "%d", &duration)
+		} else if strings.HasPrefix(line, "PATH:") {
+			path = strings.TrimPrefix(line, "PATH:")
+		}
+	}
+
+	if title == "" || path == "" {
+		return "", 0, "", fmt.Errorf("failed to extract title or path from output: %s", stdout)
+	}
+
+	return title, duration, path, nil
+}
+
+func youtubeHandler(c *gotdbot.Client, m *gotdbot.Message) error {
 	if m.IsCommand() {
 		return nil
 	}
@@ -163,7 +184,7 @@ func youtubeHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	}
 
 	audioOnly := typ == "video"
-	filePath, thumbPath, title, tempDir, err := downloadYouTube(url, audioOnly)
+	filePath, thumbPath, title, duration, tempDir, err := downloadYouTube(url, audioOnly)
 	if err != nil {
 		if err.Error() == "DURATION_EXCEEDED" {
 			_, _ = reply.EditText(c, "Sorry, videos over 1 hour are not supported.", nil)
@@ -190,12 +211,14 @@ func youtubeHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 			Caption:             caption,
 			ParseMode:           "HTML",
 			Title:               title,
+			Duration:            duration,
 			AlbumCoverThumbnail: thumbInput,
 		})
 	} else {
 		_, err = m.ReplyVideo(c, input, &gotdbot.SendVideoOpts{
 			Caption:   caption,
 			ParseMode: "HTML",
+			Duration:  duration,
 			Thumbnail: thumbInput,
 		})
 	}
@@ -210,8 +233,7 @@ func youtubeHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	return gotdbot.EndGroups
 }
 
-func ytCommandHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
-	m := ctx.EffectiveMessage
+func ytCommandHandler(c *gotdbot.Client, m *gotdbot.Message) error {
 	url := getUrl(m)
 	if url == "" {
 		_, _ = m.ReplyText(c, "Usage: /yt <url>", nil)
@@ -227,7 +249,7 @@ func ytCommandHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 		return err
 	}
 
-	filePath, thumbPath, title, tempDir, err := downloadYouTube(url, false)
+	filePath, thumbPath, title, duration, tempDir, err := downloadYouTube(url, false)
 	if err != nil {
 		if err.Error() == "DURATION_EXCEEDED" {
 			_, _ = reply.EditText(c, "Sorry, videos over 1 hour are not supported.", nil)
@@ -251,6 +273,7 @@ func ytCommandHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	_, err = m.ReplyVideo(c, input, &gotdbot.SendVideoOpts{
 		Caption:   caption,
 		ParseMode: "HTML",
+		Duration:  duration,
 		Thumbnail: thumbInput,
 	})
 

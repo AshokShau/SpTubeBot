@@ -8,8 +8,7 @@ import (
 	"github.com/AshokShau/gotdbot"
 )
 
-func handleCloneCreate(c *gotdbot.Client, ctx *gotdbot.Context) error {
-	cb := ctx.Update.UpdateNewCallbackQuery
+func handleCloneCreate(c *gotdbot.Client, cb *gotdbot.UpdateNewCallbackQuery) error {
 	userId := cb.SenderUserId
 
 	bots, err := database.GetBotsByOwner(userId)
@@ -45,14 +44,14 @@ func handleCloneCreate(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	return gotdbot.EndGroups
 }
 
-func stopHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
-	userId := ctx.EffectiveChatId
+func stopHandler(c *gotdbot.Client, m *gotdbot.Message) error {
+	userId := m.ChatId
 	ownerId, ok := database.GetOwner(c.Me.Id)
 	if !ok || ownerId != userId {
 		return nil
 	}
 
-	_, err := ctx.EffectiveMessage.ReplyText(c, "Stopping this bot and removing your token from database...", nil)
+	_, err := m.ReplyText(c, "Stopping this bot and removing your token from database...", nil)
 	if err != nil {
 		return err
 	}

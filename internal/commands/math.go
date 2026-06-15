@@ -8,8 +8,7 @@ import (
 	"github.com/AshokShau/gotdbot"
 )
 
-func mathHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
-	m := ctx.EffectiveMessage
+func mathHandler(c *gotdbot.Client, m *gotdbot.Message) error {
 	args := m.GetText()
 	parts := strings.SplitN(args, " ", 2)
 

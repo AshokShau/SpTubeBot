@@ -85,32 +85,32 @@ func canManageBlacklist(botID, senderID int64) bool {
 	return ok && senderID == ownerID
 }
 
-func blockHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
+func blockHandler(c *gotdbot.Client, m *gotdbot.Message) error {
 	botID := c.Me.Id
-	senderID := ctx.EffectiveMessage.SenderID()
+	senderID := m.SenderID()
 	if !canManageBlacklist(botID, senderID) {
 		return nil
 	}
 
-	targetID, err := getTargetUserID(c, ctx.EffectiveMessage)
+	targetID, err := getTargetUserID(c, m)
 	if err != nil {
-		_, err = ctx.EffectiveMessage.ReplyText(c, fmt.Sprintf("Error: %v", err), nil)
+		_, err = m.ReplyText(c, fmt.Sprintf("Error: %v", err), nil)
 		return err
 	}
 
 	if targetID == senderID {
-		_, err = ctx.EffectiveMessage.ReplyText(c, "You cannot block yourself.", nil)
+		_, err = m.ReplyText(c, "You cannot block yourself.", nil)
 		return err
 	}
 
 	if targetID == globalConfig.OwnerId {
-		_, err = ctx.EffectiveMessage.ReplyText(c, "You cannot block the bot owner.", nil)
+		_, err = m.ReplyText(c, "You cannot block the bot owner.", nil)
 		return err
 	}
 
 	err = database.BlacklistEntity(botID, targetID)
 	if err != nil {
-		_, err = ctx.EffectiveMessage.ReplyText(c, fmt.Sprintf("Failed to block: %v", err), nil)
+		_, err = m.ReplyText(c, fmt.Sprintf("Failed to block: %v", err), nil)
 		return err
 	}
 
@@ -123,29 +123,29 @@ func blockHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	}
 
 	_, _ = c.SendTextMessage(targetID, blockMsg, nil)
-	_, err = ctx.EffectiveMessage.ReplyText(c, fmt.Sprintf("Successfully blocked ID: <code>%d</code> on this bot.", targetID), &gotdbot.SendTextMessageOpts{ParseMode: "HTML"})
+	_, err = m.ReplyText(c, fmt.Sprintf("Successfully blocked ID: <code>%d</code> on this bot.", targetID), &gotdbot.SendTextMessageOpts{ParseMode: "HTML"})
 	return err
 }
 
-func unblockHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
+func unblockHandler(c *gotdbot.Client, m *gotdbot.Message) error {
 	botID := c.Me.Id
-	senderID := ctx.EffectiveMessage.SenderID()
+	senderID := m.SenderID()
 	if !canManageBlacklist(botID, senderID) {
 		return nil
 	}
 
-	targetID, err := getTargetUserID(c, ctx.EffectiveMessage)
+	targetID, err := getTargetUserID(c, m)
 	if err != nil {
-		_, err = ctx.EffectiveMessage.ReplyText(c, fmt.Sprintf("Error: %v", err), nil)
+		_, err = m.ReplyText(c, fmt.Sprintf("Error: %v", err), nil)
 		return err
 	}
 
 	err = database.WhitelistEntity(botID, targetID)
 	if err != nil {
-		_, err = ctx.EffectiveMessage.ReplyText(c, fmt.Sprintf("Failed to unblock: %v", err), nil)
+		_, err = m.ReplyText(c, fmt.Sprintf("Failed to unblock: %v", err), nil)
 		return err
 	}
 
-	_, err = ctx.EffectiveMessage.ReplyText(c, fmt.Sprintf("Successfully unblocked ID: <code>%d</code> on this bot.", targetID), &gotdbot.SendTextMessageOpts{ParseMode: "HTML"})
+	_, err = m.ReplyText(c, fmt.Sprintf("Successfully unblocked ID: <code>%d</code> on this bot.", targetID), &gotdbot.SendTextMessageOpts{ParseMode: "HTML"})
 	return err
 }

@@ -10,8 +10,7 @@ import (
 	"github.com/AshokShau/gotdbot"
 )
 
-func handleMyBots(c *gotdbot.Client, ctx *gotdbot.Context) error {
-	cb := ctx.Update.UpdateNewCallbackQuery
+func handleMyBots(c *gotdbot.Client, cb *gotdbot.UpdateNewCallbackQuery) error {
 	userId := cb.SenderUserId
 	if userId != globalConfig.OwnerId && database.IsBlacklisted(c.Me.Id, userId) {
 		return gotdbot.EndGroups
@@ -62,14 +61,13 @@ func handleMyBots(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	return nil
 }
 
-func handleBotManage(c *gotdbot.Client, ctx *gotdbot.Context) error {
-	cb := ctx.Update.UpdateNewCallbackQuery
+func handleBotManage(c *gotdbot.Client, cb *gotdbot.UpdateNewCallbackQuery) error {
 	senderID := cb.SenderUserId
 	if senderID != globalConfig.OwnerId && database.IsBlacklisted(c.Me.Id, senderID) {
 		return gotdbot.EndGroups
 	}
 
-	data := string(cb.Payload.(*gotdbot.CallbackQueryPayloadData).Data)
+	data := cb.DataString()
 	botIdStr := strings.TrimPrefix(data, "bot_")
 	botId, err := strconv.ParseInt(botIdStr, 10, 64)
 	if err != nil {
@@ -105,19 +103,18 @@ func handleBotManage(c *gotdbot.Client, ctx *gotdbot.Context) error {
 
 	text := fmt.Sprintf("Managing <b>%s</b>:\n\n• <b>Revoke Token</b>: Generates a new token and restarts the bot.\n• <b>Stop & Delete (from DB)</b>: Stops the bot permanently.", botName)
 	_, err = cb.EditMessageText(c, text, &gotdbot.EditTextMessageOpts{
-		ParseMode:   gotdbot.ParseModeHTML,
+		ParseMode:   "HTML",
 		ReplyMarkup: replyMarkup,
 	})
 	return err
 }
 
-func handleBotRevoke(c *gotdbot.Client, ctx *gotdbot.Context) error {
-	cb := ctx.Update.UpdateNewCallbackQuery
+func handleBotRevoke(c *gotdbot.Client, cb *gotdbot.UpdateNewCallbackQuery) error {
 	if cb.SenderUserId != globalConfig.OwnerId && database.IsBlacklisted(c.Me.Id, cb.SenderUserId) {
 		return gotdbot.EndGroups
 	}
 
-	data := string(cb.Payload.(*gotdbot.CallbackQueryPayloadData).Data)
+	data := cb.DataString()
 	botIdStr := strings.TrimPrefix(data, "revoke_")
 	botId, err := strconv.ParseInt(botIdStr, 10, 64)
 	if err != nil {
@@ -153,7 +150,6 @@ func handleBotRevoke(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	})
 
 	clientConfig := gotdbot.DefaultClientConfig()
-	clientConfig.Dispatcher = c.Dispatcher
 	clientConfig.DatabaseDirectory = "db_" + botIdStr
 
 	_, err = manager.RegisterClient(globalConfig.ApiId, globalConfig.ApiHash, newToken.Text, clientConfig)
@@ -166,13 +162,12 @@ func handleBotRevoke(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	return nil
 }
 
-func handleBotDelete(c *gotdbot.Client, ctx *gotdbot.Context) error {
-	cb := ctx.Update.UpdateNewCallbackQuery
+func handleBotDelete(c *gotdbot.Client, cb *gotdbot.UpdateNewCallbackQuery) error {
 	if cb.SenderUserId != globalConfig.OwnerId && database.IsBlacklisted(c.Me.Id, cb.SenderUserId) {
 		return gotdbot.EndGroups
 	}
 
-	data := string(cb.Payload.(*gotdbot.CallbackQueryPayloadData).Data)
+	data := cb.DataString()
 	botIdStr := strings.TrimPrefix(data, "delete_")
 	botId, err := strconv.ParseInt(botIdStr, 10, 64)
 	if err != nil {
@@ -199,13 +194,12 @@ func handleBotDelete(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	return nil
 }
 
-func handleCloneBack(c *gotdbot.Client, ctx *gotdbot.Context) error {
-	cb := ctx.Update.UpdateNewCallbackQuery
+func handleCloneBack(c *gotdbot.Client, cb *gotdbot.UpdateNewCallbackQuery) error {
 	if cb.SenderUserId != globalConfig.OwnerId && database.IsBlacklisted(c.Me.Id, cb.SenderUserId) {
 		return gotdbot.EndGroups
 	}
 
-	_ = c.AnswerCallbackQuery(int32(cb.Id), cb.SenderUserId, strconv.FormatInt(cb.ChatInstance, 10), "", &gotdbot.AnswerCallbackQueryOpts{})
+	_ = cb.Answer(c, 0, false, "", "")
 
 	text := `Welcome to <b>NoiNoi Bot</b>! 🚀
 
@@ -225,6 +219,6 @@ Join @FallenProjects for more cool bots and updates.`
 		},
 	}
 
-	_, _ = cb.EditMessageText(c, text, &gotdbot.EditTextMessageOpts{ParseMode: "HTMl", ReplyMarkup: replyMarkup})
+	_, _ = cb.EditMessageText(c, text, &gotdbot.EditTextMessageOpts{ParseMode: "HTML", ReplyMarkup: replyMarkup})
 	return nil
 }

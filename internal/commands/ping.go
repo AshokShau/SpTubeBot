@@ -8,8 +8,7 @@ import (
 	"github.com/AshokShau/gotdbot"
 )
 
-func pingHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
-	m := ctx.EffectiveMessage
+func pingHandler(c *gotdbot.Client, m *gotdbot.Message) error {
 	start := time.Now()
 
 	msg, err := m.ReplyText(c, "Checking status...", nil)

@@ -25,8 +25,7 @@ func getArgs(m *gotdbot.Message) []string {
 	return parts[1:]
 }
 
-func catboxHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
-	m := ctx.EffectiveMessage
+func catboxHandler(c *gotdbot.Client, m *gotdbot.Message) error {
 	args := getArgs(m)
 	userhash := globalConfig.CatboxUserhash
 
@@ -61,7 +60,7 @@ func catboxHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 				_, _ = m.ReplyText(c, "Usage: /catbox album <create|edit|add|remove|delete> ...", nil)
 				return nil
 			}
-			return handleAlbumSubcommand(c, ctx, args[1:])
+			return handleAlbumSubcommand(c, m, args[1:])
 		}
 	}
 
@@ -109,11 +108,11 @@ func catboxHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 			{
 				{
 					Text: "View on Catbox",
-					Type: gotdbot.InlineKeyboardButtonTypeUrl{Url: url},
+					Type: &gotdbot.InlineKeyboardButtonTypeUrl{Url: url},
 				},
 				{
 					Text: "Copy URL",
-					Type: gotdbot.InlineKeyboardButtonTypeCopyText{Text: url},
+					Type: &gotdbot.InlineKeyboardButtonTypeCopyText{Text: url},
 				},
 			},
 		},
@@ -127,8 +126,7 @@ func catboxHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	return nil
 }
 
-func litterboxHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
-	m := ctx.EffectiveMessage
+func litterboxHandler(c *gotdbot.Client, m *gotdbot.Message) error {
 	args := getArgs(m)
 
 	if m.ReplyToMessageID() == 0 {
@@ -186,11 +184,11 @@ func litterboxHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 			{
 				{
 					Text: "View on Catbox",
-					Type: gotdbot.InlineKeyboardButtonTypeUrl{Url: url},
+					Type: &gotdbot.InlineKeyboardButtonTypeUrl{Url: url},
 				},
 				{
 					Text: "Copy URL",
-					Type: gotdbot.InlineKeyboardButtonTypeCopyText{Text: url},
+					Type: &gotdbot.InlineKeyboardButtonTypeCopyText{Text: url},
 				},
 			},
 		},
@@ -204,8 +202,7 @@ func litterboxHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	return nil
 }
 
-func handleAlbumSubcommand(c *gotdbot.Client, ctx *gotdbot.Context, args []string) error {
-	m := ctx.EffectiveMessage
+func handleAlbumSubcommand(c *gotdbot.Client, m *gotdbot.Message, args []string) error {
 	userhash := globalConfig.CatboxUserhash
 	if userhash == "" {
 		_, _ = m.ReplyText(c, "Please set CATBOX_USERHASH", nil)

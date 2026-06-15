@@ -3,12 +3,17 @@ package commands
 import td "github.com/AshokShau/gotdbot"
 
 func getUrl(m *td.Message) string {
-	text := m.GetText()
-	if text == "" {
-		return ""
+	ft, err := m.GetFormattedText()
+	if err != nil || ft == nil {
+		ft, err = m.GetFormattedCaption()
+		if err != nil || ft == nil {
+			return ""
+		}
 	}
 
-	entities := m.GetEntities()
+	text := ft.Text
+	entities := ft.Entities
+
 	if entities == nil || len(entities) == 0 {
 		return ""
 	}

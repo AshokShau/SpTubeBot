@@ -26,9 +26,7 @@ func main() {
 
 	httpx.Init(cfg.ApiKey, cfg.ApiUrl)
 
-	manager := gotdbot.NewClientManager("./libtdjson.so.1.8.64")
-	dispatcher := gotdbot.NewDispatcher(nil)
-	commands.LoadCmd(dispatcher, manager, cfg)
+	manager := gotdbot.NewClientManager("./libtdjson.so.1.8.65")
 
 	type botToRegister struct {
 		token   string
@@ -58,7 +56,6 @@ func main() {
 
 	for _, b := range botsToRegister {
 		con := gotdbot.DefaultClientConfig()
-		con.Dispatcher = dispatcher
 		con.DatabaseDirectory = b.dbDir
 		client, err := manager.RegisterClient(cfg.ApiId, cfg.ApiHash, b.token, con)
 		if err != nil {
@@ -67,17 +64,7 @@ func main() {
 			continue
 		}
 
-		me, err := client.GetMe()
-		if err != nil {
-			log.Printf("Failed to get me for token %s: %v", b.token, err)
-			continue
-		}
-
-		username := ""
-		if me.Usernames != nil && len(me.Usernames.ActiveUsernames) > 0 {
-			username = me.Usernames.ActiveUsernames[0]
-		}
-		client.Logger.Info("Logged in", "username", username, "id", me.Id)
+		commands.SetupHandlers(client, manager, cfg)
 	}
 
 	manager.Idle()
