@@ -261,6 +261,38 @@ func GetBotStats(botId int64) (BotStats, error) {
 	return stats, nil
 }
 
+func GetUsers(botId int64) []int64 {
+	trackedMu.RLock()
+	defer trackedMu.RUnlock()
+
+	usersMap, ok := trackedUsers[botId]
+	if !ok {
+		return nil
+	}
+
+	users := make([]int64, 0, len(usersMap))
+	for id := range usersMap {
+		users = append(users, id)
+	}
+	return users
+}
+
+func GetChats(botId int64) []int64 {
+	trackedMu.RLock()
+	defer trackedMu.RUnlock()
+
+	chatsMap, ok := trackedChats[botId]
+	if !ok {
+		return nil
+	}
+
+	chats := make([]int64, 0, len(chatsMap))
+	for id := range chatsMap {
+		chats = append(chats, id)
+	}
+	return chats
+}
+
 func GetGlobalStats() (totalBots int64, totalUsers int, totalChats int, totalSuccess int64, totalFailed int64, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

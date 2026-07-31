@@ -101,15 +101,15 @@ func downloadYouTube(url string, audioOnly bool) (string, string, string, int32,
 func parseYtDlpOutput(stdout string) (string, int32, string, error) {
 	var title, path string
 	var duration int32
-	lines := strings.Split(stdout, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(stdout, "\n")
+	for line := range lines {
 		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "TITLE:") {
-			title = strings.TrimPrefix(line, "TITLE:")
-		} else if strings.HasPrefix(line, "DURATION:") {
-			fmt.Sscanf(strings.TrimPrefix(line, "DURATION:"), "%d", &duration)
-		} else if strings.HasPrefix(line, "PATH:") {
-			path = strings.TrimPrefix(line, "PATH:")
+		if after, ok := strings.CutPrefix(line, "TITLE:"); ok {
+			title = after
+		} else if after, ok := strings.CutPrefix(line, "DURATION:"); ok {
+			fmt.Sscanf(after, "%d", &duration)
+		} else if after, ok := strings.CutPrefix(line, "PATH:"); ok {
+			path = after
 		}
 	}
 

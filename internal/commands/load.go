@@ -34,6 +34,8 @@ func SetupHandlers(c *gotdbot.Client, m *gotdbot.ClientManager, cfg *config.Conf
 	c.OnCommand("litterbox", litterboxHandler)
 	c.OnCommand("block", blockHandler)
 	c.OnCommand("unblock", unblockHandler)
+	c.OnCommand("broadcast", broadcastHandler)
+	c.OnCommand("stopbroadcast", cancelBroadcastHandler)
 
 	c.OnUpdateNewInlineQuery(handleInlineQuery, nil)
 	c.OnUpdateNewInlineCallbackQuery(handleInlineCallbackQuery, nil)

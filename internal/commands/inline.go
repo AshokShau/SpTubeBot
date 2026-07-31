@@ -14,9 +14,14 @@ import (
 	"github.com/AshokShau/gotdbot"
 )
 
+type searchItem struct {
+	URL         string
+	OwnerUserId int64
+}
+
 var (
-	urlCache = make(map[string]string)
-	cacheMu  sync.RWMutex
+	searchCache = make(map[string]searchItem)
+	cacheMu     sync.RWMutex
 
 	rateLimit = make(map[int64]int64)
 	limitMu   sync.Mutex
@@ -36,18 +41,23 @@ func isRateLimited(userId int64) bool {
 	return false
 }
 
-func getCachedURL(hash string) string {
+func getCachedSearch(hash string) (searchItem, bool) {
 	cacheMu.RLock()
 	defer cacheMu.RUnlock()
-	return urlCache[hash]
+	item, ok := searchCache[hash]
+	return item, ok
 }
 
-func setCachedURL(url string) string {
-	hash := md5.Sum([]byte(url))
+func setCachedSearch(userId int64, url string) string {
+	hashData := fmt.Sprintf("%d:%s", userId, url)
+	hash := md5.Sum([]byte(hashData))
 	hashStr := hex.EncodeToString(hash[:8])
 	cacheMu.Lock()
 	defer cacheMu.Unlock()
-	urlCache[hashStr] = url
+	searchCache[hashStr] = searchItem{
+		URL:         url,
+		OwnerUserId: userId,
+	}
 	return hashStr
 }
 
@@ -100,7 +110,7 @@ func handleInlineQuery(c *gotdbot.Client, iq *gotdbot.UpdateNewInlineQuery) erro
 	}
 
 	var results []gotdbot.InputInlineQueryResult
-	urlHash := setCachedURL(targetUrl)
+	urlHash := setCachedSearch(iq.SenderUserId, targetUrl)
 	caption := "Join @FallenProjects"
 
 	mediaList := getAllMedia(snapData)
@@ -197,7 +207,14 @@ func handleGuestQuery(c *gotdbot.Client, u *gotdbot.UpdateNewGuestQuery) error {
 		return nil
 	}
 
-	urlHash := setCachedURL(targetUrl)
+	var senderID int64
+	if len(u.ReferenceMessages) > 0 {
+		senderID = u.ReferenceMessages[0].SenderID()
+	} else if u.Message != nil {
+		senderID = u.Message.SenderID()
+	}
+
+	urlHash := setCachedSearch(senderID, targetUrl)
 	caption := "Join @FallenProjects"
 
 	media := mediaList[0]
@@ -288,13 +305,18 @@ func handleInlineCallbackQuery(c *gotdbot.Client, icq *gotdbot.UpdateNewInlineCa
 	urlHash := parts[1]
 	index, _ := strconv.Atoi(parts[2])
 
-	targetUrl := getCachedURL(urlHash)
-	if targetUrl == "" {
+	search, ok := getCachedSearch(urlHash)
+	if !ok {
 		_ = c.AnswerCallbackQuery(0, icq.Id, "Session expired, please search again.", "", nil)
 		return nil
 	}
 
-	snapData, err := httpx.GetSnap(targetUrl)
+	if icq.SenderUserId != search.OwnerUserId && icq.SenderUserId != globalConfig.OwnerId {
+		_ = c.AnswerCallbackQuery(0, icq.Id, "Only the person who searched this can navigate!", "", &gotdbot.AnswerCallbackQueryOpts{ShowAlert: true})
+		return nil
+	}
+
+	snapData, err := httpx.GetSnap(search.URL)
 	if err != nil {
 		_ = c.AnswerCallbackQuery(0, icq.Id, "Error fetching data.", "", nil)
 		return nil
@@ -371,7 +393,7 @@ func createNavigationMarkup(urlHash string, currentIndex, total int) *gotdbot.Re
 	buttons = append(buttons, gotdbot.InlineKeyboardButton{
 		Text: "⬅️ Previous",
 		Type: &gotdbot.InlineKeyboardButtonTypeCallback{
-			Data: []byte(fmt.Sprintf("sn_%s_%d", urlHash, prevIndex)),
+			Data: fmt.Appendf(nil, "sn_%s_%d", urlHash, prevIndex),
 		},
 	})
 
@@ -385,7 +407,7 @@ func createNavigationMarkup(urlHash string, currentIndex, total int) *gotdbot.Re
 	buttons = append(buttons, gotdbot.InlineKeyboardButton{
 		Text: "Next ➡️",
 		Type: &gotdbot.InlineKeyboardButtonTypeCallback{
-			Data: []byte(fmt.Sprintf("sn_%s_%d", urlHash, nextIndex)),
+			Data: fmt.Appendf(nil, "sn_%s_%d", urlHash, nextIndex),
 		},
 	})
 

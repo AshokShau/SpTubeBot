@@ -9,6 +9,7 @@ import (
 	"noinoi/internal/database"
 	"noinoi/internal/httpx"
 	"strconv"
+	"time"
 
 	"github.com/AshokShau/gotdbot"
 )
@@ -26,7 +27,7 @@ func main() {
 
 	httpx.Init(cfg.ApiKey, cfg.ApiUrl)
 
-	manager := gotdbot.NewClientManager("./libtdjson.so.1.8.65")
+	manager := gotdbot.NewClientManager("./libtdjson.so.1.8.66")
 
 	type botToRegister struct {
 		token   string
@@ -57,6 +58,12 @@ func main() {
 	for _, b := range botsToRegister {
 		con := gotdbot.DefaultClientConfig()
 		con.DatabaseDirectory = b.dbDir
+
+		con.AutoRetry = &gotdbot.AutoRetry{
+			MaxFloodWait: 5 * time.Second,
+			ChatNotFound: true,
+		}
+
 		client, err := manager.RegisterClient(cfg.ApiId, cfg.ApiHash, b.token, con)
 		if err != nil {
 			log.Printf("Failed to register client for token %s: %v", b.token, err)

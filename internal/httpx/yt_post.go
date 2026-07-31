@@ -39,7 +39,7 @@ func GetYouTubePost(url string) (*YouTubePostData, error) {
 		return nil, fmt.Errorf("could not find ytInitialData")
 	}
 
-	var data map[string]interface{}
+	var data map[string]any
 	if err := json.Unmarshal(match[1], &data); err != nil {
 		return nil, err
 	}
@@ -47,18 +47,18 @@ func GetYouTubePost(url string) (*YouTubePostData, error) {
 	return parseYouTubePost(data)
 }
 
-func parseYouTubePost(data map[string]interface{}) (*YouTubePostData, error) {
+func parseYouTubePost(data map[string]any) (*YouTubePostData, error) {
 	renderer := findBackstagePostRenderer(data)
 	if renderer == nil {
 		return nil, fmt.Errorf("backstagePostRenderer not found")
 	}
 
 	postData := &YouTubePostData{}
-	if contentText, ok := renderer["contentText"].(map[string]interface{}); ok {
-		if runs, ok := contentText["runs"].([]interface{}); ok {
+	if contentText, ok := renderer["contentText"].(map[string]any); ok {
+		if runs, ok := contentText["runs"].([]any); ok {
 			var sb strings.Builder
 			for _, run := range runs {
-				if r, ok := run.(map[string]interface{}); ok {
+				if r, ok := run.(map[string]any); ok {
 					if text, ok := r["text"].(string); ok {
 						sb.WriteString(text)
 					}
@@ -68,18 +68,18 @@ func parseYouTubePost(data map[string]interface{}) (*YouTubePostData, error) {
 		}
 	}
 
-	if attachment, ok := renderer["backstageAttachment"].(map[string]interface{}); ok {
-		if imgRenderer, ok := attachment["backstageImageRenderer"].(map[string]interface{}); ok {
+	if attachment, ok := renderer["backstageAttachment"].(map[string]any); ok {
+		if imgRenderer, ok := attachment["backstageImageRenderer"].(map[string]any); ok {
 			if url := getBestThumbnail(imgRenderer); url != "" {
 				postData.Images = append(postData.Images, url)
 			}
 		}
 
-		if multiImgRenderer, ok := attachment["postMultiImageRenderer"].(map[string]interface{}); ok {
-			if images, ok := multiImgRenderer["images"].([]interface{}); ok {
+		if multiImgRenderer, ok := attachment["postMultiImageRenderer"].(map[string]any); ok {
+			if images, ok := multiImgRenderer["images"].([]any); ok {
 				for _, img := range images {
-					if imgMap, ok := img.(map[string]interface{}); ok {
-						if imgRenderer, ok := imgMap["backstageImageRenderer"].(map[string]interface{}); ok {
+					if imgMap, ok := img.(map[string]any); ok {
+						if imgRenderer, ok := imgMap["backstageImageRenderer"].(map[string]any); ok {
 							if url := getBestThumbnail(imgRenderer); url != "" {
 								postData.Images = append(postData.Images, url)
 							}
@@ -93,10 +93,10 @@ func parseYouTubePost(data map[string]interface{}) (*YouTubePostData, error) {
 	return postData, nil
 }
 
-func findBackstagePostRenderer(data interface{}) map[string]interface{} {
+func findBackstagePostRenderer(data any) map[string]any {
 	switch v := data.(type) {
-	case map[string]interface{}:
-		if r, ok := v["backstagePostRenderer"].(map[string]interface{}); ok {
+	case map[string]any:
+		if r, ok := v["backstagePostRenderer"].(map[string]any); ok {
 			return r
 		}
 		for _, val := range v {
@@ -104,7 +104,7 @@ func findBackstagePostRenderer(data interface{}) map[string]interface{} {
 				return found
 			}
 		}
-	case []interface{}:
+	case []any:
 		for _, val := range v {
 			if found := findBackstagePostRenderer(val); found != nil {
 				return found
@@ -114,11 +114,11 @@ func findBackstagePostRenderer(data interface{}) map[string]interface{} {
 	return nil
 }
 
-func getBestThumbnail(imgRenderer map[string]interface{}) string {
-	if image, ok := imgRenderer["image"].(map[string]interface{}); ok {
-		if thumbnails, ok := image["thumbnails"].([]interface{}); ok && len(thumbnails) > 0 {
+func getBestThumbnail(imgRenderer map[string]any) string {
+	if image, ok := imgRenderer["image"].(map[string]any); ok {
+		if thumbnails, ok := image["thumbnails"].([]any); ok && len(thumbnails) > 0 {
 			last := thumbnails[len(thumbnails)-1]
-			if thumbMap, ok := last.(map[string]interface{}); ok {
+			if thumbMap, ok := last.(map[string]any); ok {
 				if url, ok := thumbMap["url"].(string); ok {
 					return url
 				}

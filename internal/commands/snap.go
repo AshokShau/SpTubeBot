@@ -51,10 +51,7 @@ func snapHandler(c *gotdbot.Client, m *gotdbot.Message) error {
 
 	if len(snapData.Images) > 0 {
 		for i := 0; i < len(snapData.Images); i += 10 {
-			end := i + 10
-			if end > len(snapData.Images) {
-				end = len(snapData.Images)
-			}
+			end := min(i+10, len(snapData.Images))
 
 			batchUrls := snapData.Images[i:end]
 			var batch []SnapMediaItem
@@ -85,10 +82,7 @@ func snapHandler(c *gotdbot.Client, m *gotdbot.Message) error {
 		}
 
 		for i := 0; i < len(audioUrls); i += 10 {
-			end := i + 10
-			if end > len(audioUrls) {
-				end = len(audioUrls)
-			}
+			end := min(i+10, len(audioUrls))
 			batchUrls := audioUrls[i:end]
 			var batch []SnapMediaItem
 			for _, u := range batchUrls {
@@ -123,10 +117,7 @@ func snapHandler(c *gotdbot.Client, m *gotdbot.Message) error {
 		}
 
 		for i := 0; i < len(videosWithAudio); i += 10 {
-			end := i + 10
-			if end > len(videosWithAudio) {
-				end = len(videosWithAudio)
-			}
+			end := min(i+10, len(videosWithAudio))
 			batch := videosWithAudio[i:end]
 
 			if len(batch) == 1 {
