@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 )
@@ -79,8 +80,8 @@ func DownloadFile(rawURL string) (string, error) {
 // extractFilePath pulls the last non-empty line from yt-dlp output.
 func extractFilePath(output string) (string, error) {
 	lines := strings.Split(output, "\n")
-	for i := len(lines) - 1; i >= 0; i-- {
-		if line := strings.TrimSpace(lines[i]); line != "" {
+	for _, line := range slices.Backward(lines) {
+		if line := strings.TrimSpace(line); line != "" {
 			return line, nil
 		}
 	}

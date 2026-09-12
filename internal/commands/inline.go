@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"html"
 	"log/slog"
 	"noinoi/internal/httpx"
 	"strconv"
@@ -111,7 +112,7 @@ func handleInlineQuery(c *gotdbot.Client, iq *gotdbot.UpdateNewInlineQuery) erro
 
 	var results []gotdbot.InputInlineQueryResult
 	urlHash := setCachedSearch(iq.SenderUserId, targetUrl)
-	caption := "Join @FallenProjects"
+	caption := getFormattedCaption(c, targetUrl)
 
 	mediaList := getAllMedia(snapData)
 	if len(mediaList) == 0 {
@@ -145,9 +146,7 @@ func handleInlineQuery(c *gotdbot.Client, iq *gotdbot.UpdateNewInlineQuery) erro
 					Video: &gotdbot.InputVideo{
 						Video: &gotdbot.InputFileRemote{Id: media.URL},
 					},
-					Caption: &gotdbot.FormattedText{
-						Text: caption,
-					},
+					Caption: caption,
 				},
 			}
 		} else {
@@ -161,9 +160,7 @@ func handleInlineQuery(c *gotdbot.Client, iq *gotdbot.UpdateNewInlineQuery) erro
 					Photo: &gotdbot.InputPhoto{
 						Photo: &gotdbot.InputFileRemote{Id: media.URL},
 					},
-					Caption: &gotdbot.FormattedText{
-						Text: caption,
-					},
+					Caption: caption,
 				},
 			}
 		}
@@ -215,7 +212,7 @@ func handleGuestQuery(c *gotdbot.Client, u *gotdbot.UpdateNewGuestQuery) error {
 	}
 
 	urlHash := setCachedSearch(senderID, targetUrl)
-	caption := "Join @FallenProjects"
+	caption := getFormattedCaption(c, targetUrl)
 
 	media := mediaList[0]
 	markup := createNavigationMarkup(urlHash, 0, len(mediaList))
@@ -238,9 +235,7 @@ func handleGuestQuery(c *gotdbot.Client, u *gotdbot.UpdateNewGuestQuery) error {
 				Video: &gotdbot.InputVideo{
 					Video: &gotdbot.InputFileRemote{Id: media.URL},
 				},
-				Caption: &gotdbot.FormattedText{
-					Text: caption,
-				},
+				Caption: caption,
 			},
 		}
 	} else {
@@ -254,9 +249,7 @@ func handleGuestQuery(c *gotdbot.Client, u *gotdbot.UpdateNewGuestQuery) error {
 				Photo: &gotdbot.InputPhoto{
 					Photo: &gotdbot.InputFileRemote{Id: media.URL},
 				},
-				Caption: &gotdbot.FormattedText{
-					Text: caption,
-				},
+				Caption: caption,
 			},
 		}
 	}
@@ -329,7 +322,7 @@ func handleInlineCallbackQuery(c *gotdbot.Client, icq *gotdbot.UpdateNewInlineCa
 
 	media := mediaList[index]
 	markup := createNavigationMarkup(urlHash, index, len(mediaList))
-	caption := "Join @FallenProjects"
+	caption := getFormattedCaption(c, search.URL)
 
 	var content gotdbot.InputMessageContent
 	if media.Type == "video" || media.Type == "animation" {
@@ -337,18 +330,14 @@ func handleInlineCallbackQuery(c *gotdbot.Client, icq *gotdbot.UpdateNewInlineCa
 			Video: &gotdbot.InputVideo{
 				Video: &gotdbot.InputFileRemote{Id: media.URL},
 			},
-			Caption: &gotdbot.FormattedText{
-				Text: caption,
-			},
+			Caption: caption,
 		}
 	} else {
 		content = &gotdbot.InputMessagePhoto{
 			Photo: &gotdbot.InputPhoto{
 				Photo: &gotdbot.InputFileRemote{Id: media.URL},
 			},
-			Caption: &gotdbot.FormattedText{
-				Text: caption,
-			},
+			Caption: caption,
 		}
 	}
 
@@ -379,6 +368,17 @@ func getAllMedia(snapData *httpx.SnapResponse) []mediaItem {
 		items = append(items, mediaItem{URL: vid.URL, Type: "video", Thumbnail: vid.Thumbnail})
 	}
 	return items
+}
+
+func getFormattedCaption(c *gotdbot.Client, targetUrl string) *gotdbot.FormattedText {
+	captionHTML := fmt.Sprintf("<a href=\"%s\">Link</a> | Join @FallenProjects", html.EscapeString(targetUrl))
+	formatted, err := c.ParseTextEntities(&gotdbot.TextParseModeHTML{}, captionHTML)
+	if err != nil {
+		return &gotdbot.FormattedText{
+			Text: fmt.Sprintf("Link: %s | Join @FallenProjects", targetUrl),
+		}
+	}
+	return formatted
 }
 
 func createNavigationMarkup(urlHash string, currentIndex, total int) *gotdbot.ReplyMarkupInlineKeyboard {

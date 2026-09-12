@@ -91,7 +91,7 @@ func downloadYouTube(url string, audioOnly bool) (string, string, string, int32,
 	}
 
 	thumbPath := filepath.Join(tempDir, "thumb.jpg")
-	if _, err := os.Stat(thumbPath); os.IsNotExist(err) {
+	if _, err = os.Stat(thumbPath); os.IsNotExist(err) {
 		thumbPath = ""
 	}
 
@@ -191,7 +191,7 @@ func youtubeHandler(c *gotdbot.Client, m *gotdbot.Message) error {
 			return gotdbot.EndGroups
 		}
 
-		_, _ = reply.EditText(c, fmt.Sprintf("Error: %v", err), nil)
+		_, _ = reply.EditText(c, fmt.Sprintf("Error: %v", err), &gotdbot.EditTextMessageOpts{DisableWebPagePreview: true})
 		return nil
 	}
 
